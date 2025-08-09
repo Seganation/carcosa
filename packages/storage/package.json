@@ -1,0 +1,37 @@
+{
+  "name": "@carcosa/storage",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "private": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "dev:test": "vitest",
+    "lint": "eslint . --max-warnings 0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
+    "@carcosa/types": "*"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "typescript": "5.8.3",
+    "vitest": "^2.1.4",
+    "@types/node": "^22.15.3",
+    "eslint": "^9.31.0"
+  }
+}
+

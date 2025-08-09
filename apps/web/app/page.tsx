@@ -1,6 +1,7 @@
 import Image, { type ImageProps } from "next/image";
 import { Button } from "@repo/ui/button";
 import styles from "./page.module.css";
+import { Cmage } from "@carcosa/cmage";
 
 type Props = Omit<ImageProps, "src"> & {
   srcLight: string;
@@ -63,9 +64,15 @@ export default function Home() {
             Read our docs
           </a>
         </div>
-        <Button appName="web" className={styles.secondary}>
-          Open alert
-        </Button>
+        <div style={{ marginTop: 24 }}>
+          <Cmage
+            src={"demo/files/sample.jpg"}
+            projectId={process.env.NEXT_PUBLIC_DEMO_PROJECT_ID || "demo"}
+            width={320}
+            height={200}
+            alt="Demo"
+          />
+        </div>
       </main>
       <footer className={styles.footer}>
         <a

@@ -1,0 +1,45 @@
+{
+  "name": "api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "postinstall": "prisma generate",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@carcosa/storage": "*",
+    "@carcosa/types": "*",
+    "@prisma/client": "^5.18.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "pg": "^8.13.1",
+    "ioredis": "^5.4.1",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.5",
+    "zod": "^3.23.8",
+    "libsodium-wrappers": "^0.7.14",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/morgan": "^1.9.9",
+    "@types/pg": "^8.11.10",
+    "@types/node": "^22.15.3",
+    "eslint": "^9.31.0",
+    "prisma": "^5.18.0",
+    "tsx": "^4.19.2",
+    "typescript": "5.8.3"
+  }
+}
+
