@@ -1,0 +1,61 @@
+name: Web Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "turbo.json"
+      - ".github/workflows/web.yml"
+  workflow_dispatch:
+
+# Cancel in-progress jobs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Make setup script executable
+        run: chmod +x setup.sh
+
+      - name: Run setup script
+        run: ./setup.sh
+
+      - name: Log in to Coolify Registry
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: echo "${{ secrets.COOLIFY_REGISTRY_PASSWORD }}" | docker login registry.rawadara.com -u ${{ secrets.COOLIFY_REGISTRY_USERNAME }} --password-stdin
+
+      - name: Build and Push (No Cache)
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: |
+            docker build -t registry.rawadara.com/web:latest -f ./apps/web/Dockerfile . --no-cache
+            docker push registry.rawadara.com/web:latest
+
+      - name: Trigger Coolify Webhook for Web Redeployment
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 2
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: curl -X POST ${{ secrets.COOLIFY_WEB_WEBHOOK_URL }}

@@ -1,0 +1,2 @@
+Carcosa monorepo: Next.js dashboard (apps/web) + Express API (apps/api). Packages: @carcosa/types, storage (R2/S3 via AWS SDK), sdk (REST client), cmage (React image), ui (shadcn-like), database (Prisma schema). Uses Turborepo + npm workspaces. Goal: developer-first media control plane for uploads/transforms on dev-owned R2/S3.
+Tech stack: TypeScript strict, Next 15 (App Router), Express 4, Prisma/Postgres, Redis optional, Sharp for transforms. Cloudflare worker template for edge caching. Auth: currently NextAuth in web (to be replaced with Express auth).

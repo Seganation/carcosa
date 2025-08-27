@@ -1,0 +1,378 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// New Organization model
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  logo        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ownerId     String
+  owner       User     @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  teams       Team[]
+  members     OrganizationMember[]
+  invitations Invitation[]
+  
+  @@index([ownerId])
+}
+
+// New Team model
+model Team {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String
+  description    String?
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        TeamMember[]
+  projects       Project[]
+  ownedBuckets  Bucket[] @relation("BucketOwner") // Buckets owned by this team
+  sharedBuckets BucketTeamAccess[] @relation("BucketAccess") // Buckets shared with this team
+  invitations    Invitation[]
+  
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+// New Team Member model
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  role      TeamRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation("TeamMember", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+// New Organization Member model
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationRole @default(MEMBER)
+  joinedAt       DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User     @relation("OrganizationMember", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+// New Invitation model
+model Invitation {
+  id             String   @id @default(cuid())
+  email          String
+  organizationId String?
+  teamId         String?
+  role           TeamRole @default(MEMBER)
+  status         InvitationStatus @default(PENDING)
+  invitedBy      String
+  invitedByUser  User     @relation("InvitedBy", fields: [invitedBy], references: [id], onDelete: Cascade)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team           Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@index([email])
+  @@index([organizationId])
+  @@index([teamId])
+  @@index([status])
+}
+
+// Enums for roles and statuses
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model Bucket {
+  id                 String    @id @default(cuid())
+  name               String
+  provider           String
+  bucketName         String
+  region             String?
+  endpoint           String?
+  encryptedAccessKey String
+  encryptedSecretKey String
+  status             String    @default("pending")
+  lastChecked        DateTime?
+  ownerTeamId        String    // Team that owns/created the bucket
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  ownerTeam          Team      @relation("BucketOwner", fields: [ownerTeamId], references: [id], onDelete: Cascade)
+  projects           Project[]
+  sharedTeams        BucketTeamAccess[] // Teams that can access this bucket
+
+  @@unique([ownerTeamId, bucketName, provider])
+}
+
+// New model for bucket sharing across teams
+model BucketTeamAccess {
+  id        String   @id @default(cuid())
+  bucketId  String
+  teamId    String
+  accessLevel String @default("READ_WRITE") // READ_ONLY, READ_WRITE, ADMIN
+  createdAt DateTime @default(now())
+  bucket    Bucket  @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+  team      Team    @relation("BucketAccess", fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([bucketId, teamId])
+  @@index([bucketId])
+  @@index([teamId])
+}
+
+model Project {
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique
+  ownerId     String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  bucketId    String
+  multiTenant Boolean          @default(false)
+  teamId      String?          // New field to link project to team
+  apiKeys     ApiKey[]
+  auditLogs   AuditLog[]
+  files       File[]
+  bucket      Bucket           @relation(fields: [bucketId], references: [id])
+  owner       User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  team        Team?            @relation(fields: [teamId], references: [id])
+  rateLimit   RateLimitConfig?
+  tenants     Tenant[]
+  tokens      Token[]
+  transforms  Transform[]
+  uploads     Upload[]
+  usageD      UsageDaily[]
+  versions    Version[]
+  
+  @@index([teamId])
+  @@index([bucketId])
+}
+
+model File {
+  id           String      @id @default(cuid())
+  projectId    String
+  tenantId     String?
+  path         String
+  filename     String
+  size         BigInt
+  mimeType     String
+  version      String      @default("v1")
+  metadata     Json?
+  uploadedAt   DateTime    @default(now())
+  lastAccessed DateTime?
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tenant       Tenant?     @relation(fields: [tenantId], references: [id])
+  transforms   Transform[]
+
+  @@unique([projectId, tenantId, path, version])
+  @@index([projectId, tenantId])
+  @@index([projectId, version])
+}
+
+model Transform {
+  id               String    @id @default(cuid())
+  projectId        String
+  fileId           String
+  originalPath     String
+  transformPath    String
+  transformOptions Json
+  status           String    @default("pending")
+  error            String?
+  processingTime   Int?
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+  file             File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+  @@index([fileId])
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  projectId String
+  path      String
+  status    String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id])
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  projectId String
+  slug      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  files     File[]
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, slug])
+}
+
+model ApiKey {
+  id        String    @id @default(cuid())
+  projectId String
+  label     String?
+  keyHash   String
+  permissions Json    @default("[\"read\", \"write\"]") // Array of permissions
+  lastUsedAt DateTime?
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  project   Project   @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@index([keyHash])
+}
+
+model Token {
+  id          String    @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  keyHash     String
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Version {
+  id          String   @id @default(cuid())
+  projectId   String
+  versionName String
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, versionName])
+  @@index([projectId, isActive])
+}
+
+model RateLimitConfig {
+  id                   String   @id @default(cuid())
+  projectId            String   @unique
+  uploadsPerMinute     Int      @default(120)
+  transformsPerMinute  Int      @default(360)
+  bandwidthPerMonthMiB Int?
+  updatedAt            DateTime @updatedAt
+  project              Project  @relation(fields: [projectId], references: [id])
+}
+
+model UsageDaily {
+  id             String   @id @default(cuid())
+  projectId      String
+  day            DateTime
+  uploads        Int      @default(0)
+  transforms     Int      @default(0)
+  bandwidthBytes BigInt   @default(0)
+  project        Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, day])
+  @@index([projectId, day])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, action])
+  @@index([projectId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String?    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  accounts      Account[]
+  auditLogs     AuditLog[]
+  projects      Project[]
+  sessions      Session[]
+  organizations Organization[] @relation("OrganizationOwner")
+  invitations   Invitation[] @relation("InvitedBy")
+  teamMembers   TeamMember[] @relation("TeamMember")
+  organizationMembers OrganizationMember[] @relation("OrganizationMember")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

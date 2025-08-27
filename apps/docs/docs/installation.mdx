@@ -1,0 +1,725 @@
+---
+title: Installation
+sidebar_position: 3
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Installation Guide
+
+Get Carcosa installed and running in your project. This guide covers all supported frameworks and deployment scenarios.
+
+## Package Overview
+
+Carcosa is built as a modular system with packages for different use cases:
+
+| Package | Description | Use Case |
+|---------|-------------|----------|
+| `@carcosa/nextjs` | Next.js integration | Next.js apps (App Router & Pages Router) |
+| `@carcosa/react` | React components | React apps, Vite, Create React App |
+| `@carcosa/react-native` | React Native hooks | Mobile apps |
+| `@carcosa/file-router` | Core upload router | Custom backends, Express.js |
+| `@carcosa/database` | Database schemas | Prisma, database setup |
+| `@carcosa/storage` | Storage adapters | S3, R2, custom storage |
+| `@carcosa/sdk` | JavaScript SDK | Vanilla JS, any framework |
+
+## Quick Install
+
+<Tabs>
+<TabItem value="nextjs" label="Next.js">
+
+```bash
+# Complete Next.js setup
+npm install @carcosa/nextjs @carcosa/file-router
+
+# If using Prisma (recommended)
+npm install @carcosa/database @prisma/client prisma
+```
+
+**What you get:**
+- ✅ Upload components (`CarcosaUploader`, `CarcosaDropzone`)
+- ✅ React hooks (`useUploadProgress`, `useStreamingUpload`)
+- ✅ API route handlers
+- ✅ TypeScript definitions
+- ✅ Real-time progress via WebSockets
+
+</TabItem>
+<TabItem value="react" label="React">
+
+```bash
+# React components and hooks
+npm install @carcosa/react @carcosa/file-router
+
+# For backend integration
+npm install @carcosa/sdk
+```
+
+**What you get:**
+- ✅ React components for uploads
+- ✅ Custom hooks for file management
+- ✅ TypeScript support
+- ✅ Clipboard upload support
+
+</TabItem>
+<TabItem value="react-native" label="React Native">
+
+```bash
+# React Native optimized packages
+npm install @carcosa/react-native @carcosa/sdk
+
+# Optional: Image/document pickers
+npm install react-native-image-picker react-native-document-picker
+```
+
+**What you get:**
+- ✅ Mobile-optimized upload hooks
+- ✅ Camera and gallery integration
+- ✅ Network-aware chunking
+- ✅ Background upload support
+
+</TabItem>
+<TabItem value="express" label="Express.js">
+
+```bash
+# Backend file router
+npm install @carcosa/file-router @carcosa/storage express multer
+
+# Database integration
+npm install @carcosa/database
+```
+
+**What you get:**
+- ✅ Express middleware
+- ✅ Typed upload routes
+- ✅ Storage adapters (S3, R2)
+- ✅ Real-time progress tracking
+
+</TabItem>
+<TabItem value="vanilla" label="Vanilla JS">
+
+```bash
+# Core SDK only
+npm install @carcosa/sdk
+```
+
+**What you get:**
+- ✅ Upload client
+- ✅ Progress tracking
+- ✅ Error handling
+- ✅ Works with any framework
+
+</TabItem>
+</Tabs>
+
+## System Requirements
+
+### Node.js Version
+
+Carcosa requires **Node.js 18** or higher:
+
+```bash
+# Check your Node.js version
+node --version
+# Should be v18.0.0 or higher
+
+# Update Node.js if needed
+nvm install 18
+nvm use 18
+```
+
+### Package Manager
+
+Works with all major package managers:
+
+<Tabs>
+<TabItem value="npm" label="npm">
+
+```bash
+npm install @carcosa/nextjs
+```
+
+</TabItem>
+<TabItem value="yarn" label="Yarn">
+
+```bash
+yarn add @carcosa/nextjs
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @carcosa/nextjs
+```
+
+</TabItem>
+<TabItem value="bun" label="Bun">
+
+```bash
+bun add @carcosa/nextjs
+```
+
+</TabItem>
+</Tabs>
+
+## Database Setup
+
+Carcosa requires a database for file metadata and user management:
+
+<Tabs>
+<TabItem value="prisma-setup" label="Prisma (Recommended)">
+
+### 1. Install Prisma
+
+```bash
+npm install prisma @prisma/client @carcosa/database
+```
+
+### 2. Initialize Prisma
+
+```bash
+npx prisma init
+```
+
+### 3. Add Carcosa Schema
+
+Add to your `prisma/schema.prisma`:
+
+```prisma title="prisma/schema.prisma"
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or "mysql", "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Import Carcosa models
+// Copy from @carcosa/database/prisma/schema.prisma
+// Or use our generator:
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  teams     Team[]
+  projects  Project[]
+  users     User[]
+  buckets   Bucket[]
+  
+  @@map("organizations")
+}
+
+model User {
+  id             String  @id @default(cuid())
+  email          String  @unique
+  name           String?
+  organizationId String
+  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploads      Upload[]
+  apiKeys      ApiKey[]
+  
+  @@map("users")
+}
+
+model Project {
+  id             String @id @default(cuid())
+  name           String
+  slug           String @unique
+  organizationId String
+  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploads      Upload[]
+  files        File[]
+  
+  @@map("projects")
+}
+
+model File {
+  id          String   @id @default(cuid())
+  name        String
+  path        String
+  size        Int
+  type        String
+  url         String
+  version     String   @default("1")
+  projectId   String
+  tenantId    String?
+  transforms  Json?
+  createdAt   DateTime @default(now())
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, path, version])
+  @@map("files")
+}
+
+// Add other Carcosa models...
+```
+
+### 4. Generate and Migrate
+
+```bash
+# Generate Prisma client
+npx prisma generate
+
+# Push schema to database
+npx prisma db push
+
+# Or create migration
+npx prisma migrate dev --name init
+```
+
+</TabItem>
+<TabItem value="drizzle-setup" label="Drizzle ORM">
+
+### 1. Install Drizzle
+
+```bash
+npm install drizzle-orm drizzle-kit
+npm install @types/pg pg # for PostgreSQL
+```
+
+### 2. Create Schema
+
+```typescript title="lib/db/schema.ts"
+import { 
+  pgTable, 
+  varchar, 
+  text, 
+  integer, 
+  timestamp, 
+  json,
+  boolean 
+} from 'drizzle-orm/pg-core';
+
+export const organizations = pgTable('organizations', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 255 }).unique().notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const users = pgTable('users', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  email: varchar('email', { length: 255 }).unique().notNull(),
+  name: varchar('name', { length: 255 }),
+  organizationId: varchar('organization_id', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const files = pgTable('files', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  path: varchar('path', { length: 500 }).notNull(),
+  size: integer('size').notNull(),
+  type: varchar('type', { length: 100 }).notNull(),
+  url: text('url').notNull(),
+  version: varchar('version', { length: 50 }).default('1'),
+  projectId: varchar('project_id', { length: 255 }).notNull(),
+  tenantId: varchar('tenant_id', { length: 255 }),
+  transforms: json('transforms'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+```
+
+### 3. Configure Database
+
+```typescript title="lib/db/index.ts"
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import * as schema from './schema';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+export const db = drizzle(pool, { schema });
+```
+
+</TabItem>
+<TabItem value="raw-sql" label="Raw SQL">
+
+If you prefer raw SQL, here are the essential tables:
+
+```sql title="migrations/001_create_carcosa_tables.sql"
+-- Organizations
+CREATE TABLE organizations (
+  id VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Users
+CREATE TABLE users (
+  id VARCHAR(255) PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255),
+  organization_id VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+);
+
+-- Projects
+CREATE TABLE projects (
+  id VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) UNIQUE NOT NULL,
+  organization_id VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+);
+
+-- Files
+CREATE TABLE files (
+  id VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  path VARCHAR(500) NOT NULL,
+  size INTEGER NOT NULL,
+  type VARCHAR(100) NOT NULL,
+  url TEXT NOT NULL,
+  version VARCHAR(50) DEFAULT '1',
+  project_id VARCHAR(255) NOT NULL,
+  tenant_id VARCHAR(255),
+  transforms JSON,
+  created_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  UNIQUE(project_id, path, version)
+);
+
+-- Uploads
+CREATE TABLE uploads (
+  id VARCHAR(255) PRIMARY KEY,
+  filename VARCHAR(255) NOT NULL,
+  filesize INTEGER NOT NULL,
+  filetype VARCHAR(100) NOT NULL,
+  url TEXT NOT NULL,
+  key VARCHAR(255) UNIQUE NOT NULL,
+  status VARCHAR(50) DEFAULT 'pending',
+  project_id VARCHAR(255) NOT NULL,
+  user_id VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- API Keys
+CREATE TABLE api_keys (
+  id VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  key_hash VARCHAR(255) UNIQUE NOT NULL,
+  permissions JSON NOT NULL,
+  project_id VARCHAR(255) NOT NULL,
+  user_id VARCHAR(255) NOT NULL,
+  last_used TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+</TabItem>
+</Tabs>
+
+## Storage Configuration
+
+Configure your file storage provider:
+
+<Tabs>
+<TabItem value="aws-s3" label="AWS S3">
+
+### 1. Install AWS SDK
+
+```bash
+npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+```
+
+### 2. Environment Variables
+
+```bash title=".env.local"
+AWS_ACCESS_KEY_ID="your-access-key"
+AWS_SECRET_ACCESS_KEY="your-secret-key" 
+AWS_REGION="us-east-1"
+AWS_BUCKET="your-bucket-name"
+```
+
+### 3. S3 Bucket Policy
+
+```json title="bucket-policy.json"
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::YOUR-ACCOUNT-ID:user/YOUR-IAM-USER"
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::your-bucket-name/*"
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::YOUR-ACCOUNT-ID:user/YOUR-IAM-USER"
+      },
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::your-bucket-name"
+    }
+  ]
+}
+```
+
+### 4. CORS Configuration
+
+```json title="cors-configuration.json"
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
+    "AllowedOrigins": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+</TabItem>
+<TabItem value="cloudflare-r2" label="Cloudflare R2">
+
+### 1. Environment Variables
+
+```bash title=".env.local"
+R2_ACCOUNT_ID="your-account-id"
+R2_ACCESS_KEY_ID="your-r2-access-key"
+R2_SECRET_ACCESS_KEY="your-r2-secret-key"
+R2_BUCKET="your-bucket-name"
+R2_PUBLIC_URL="https://your-bucket.your-account.r2.cloudflarestorage.com"
+```
+
+### 2. R2 Configuration
+
+Cloudflare R2 is S3-compatible, so you can use the same AWS SDK:
+
+```typescript title="lib/storage.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+
+export const r2Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
+```
+
+</TabItem>
+<TabItem value="custom-storage" label="Custom Storage">
+
+Implement your own storage adapter:
+
+```typescript title="lib/custom-storage.ts"
+import { BaseStorageAdapter } from "@carcosa/storage";
+
+export class CustomStorageAdapter extends BaseStorageAdapter {
+  async upload(file: File, key: string): Promise<string> {
+    // Your custom upload logic
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/your-upload-endpoint', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    const result = await response.json();
+    return result.url;
+  }
+  
+  async delete(key: string): Promise<void> {
+    // Your custom delete logic
+    await fetch(`/your-delete-endpoint/${key}`, {
+      method: 'DELETE',
+    });
+  }
+  
+  async getSignedUrl(key: string): Promise<string> {
+    // Your custom signed URL logic
+    const response = await fetch(`/your-signed-url-endpoint/${key}`);
+    const result = await response.json();
+    return result.signedUrl;
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Framework-Specific Setup
+
+### Vite + React
+
+```bash
+npm install @carcosa/react @carcosa/file-router
+```
+
+```typescript title="vite.config.ts"
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  define: {
+    // Enable WebSocket support
+    global: 'globalThis',
+  },
+  server: {
+    // Proxy API calls to your backend
+    proxy: {
+      '/api': 'http://localhost:3001'
+    }
+  }
+});
+```
+
+### Create React App
+
+```bash
+npm install @carcosa/react @carcosa/file-router
+```
+
+```javascript title="src/setupProxy.js"
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
+module.exports = function(app) {
+  app.use(
+    '/api',
+    createProxyMiddleware({
+      target: 'http://localhost:3001',
+      changeOrigin: true,
+      ws: true, // Enable WebSocket proxying
+    })
+  );
+};
+```
+
+### Remix
+
+```bash
+npm install @carcosa/react @carcosa/file-router
+```
+
+```typescript title="app/routes/api.upload.tsx"
+import { createCarcosaApiHandler } from "@carcosa/file-router";
+import type { ActionFunction } from "@remix-run/node";
+
+const handler = createCarcosaApiHandler({
+  // Your router configuration
+});
+
+export const action: ActionFunction = async ({ request }) => {
+  return handler(request);
+};
+```
+
+## Verification
+
+Test your installation with this simple script:
+
+```typescript title="test-installation.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+// Test router creation
+const router = createUploadRouter()
+  .addRoute("test", f.fileUploader({ maxFileSize: "1MB" }));
+
+console.log("✅ Carcosa installation verified!");
+console.log("📋 Router created with routes:", Object.keys(router.routes));
+```
+
+```bash
+npx tsx test-installation.ts
+```
+
+## Next Steps
+
+Your installation is complete! Continue with:
+
+1. **[Quick Start](/quick-start)** - Build your first upload in 5 minutes
+2. **[Configuration](/configuration)** - Customize Carcosa for your needs  
+3. **[Next.js Setup](/nextjs/setup)** - Complete Next.js integration
+4. **[Components Guide](/nextjs/components)** - Explore all components
+
+## Troubleshooting
+
+### Common Installation Issues
+
+**1. Node.js Version Error**
+
+```bash
+error: Carcosa requires Node.js 18 or higher
+```
+
+**Solution:** Update Node.js:
+
+```bash
+nvm install 18
+nvm use 18
+npm install
+```
+
+**2. Peer Dependency Warnings**
+
+```bash
+npm WARN peerDependencies
+```
+
+**Solution:** Install missing peer dependencies:
+
+```bash
+npm install react react-dom typescript
+```
+
+**3. Module Resolution Errors**
+
+```bash
+Module not found: Can't resolve '@carcosa/file-router'
+```
+
+**Solution:** Clear cache and reinstall:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**4. TypeScript Configuration**
+
+Add to your `tsconfig.json`:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "types": ["@carcosa/file-router"]
+  }
+}
+```
+
+Need more help? Visit our **[Discord community](https://discord.gg/carcosa)** or check the **[troubleshooting guide](/troubleshooting)**.

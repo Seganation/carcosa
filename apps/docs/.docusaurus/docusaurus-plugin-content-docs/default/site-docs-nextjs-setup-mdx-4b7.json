@@ -1,0 +1,30 @@
+{
+  "id": "nextjs/setup",
+  "title": "Next.js Setup",
+  "description": "Complete guide to integrating Carcosa with your Next.js application. Works with both App Router and Pages Router.",
+  "source": "@site/docs/nextjs/setup.mdx",
+  "sourceDirName": "nextjs",
+  "slug": "/nextjs/setup",
+  "permalink": "/nextjs/setup",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/carcosa/carcosa/tree/main/apps/docs/docs/nextjs/setup.mdx",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "title": "Next.js Setup",
+    "sidebar_position": 1
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Authentication",
+    "permalink": "/authentication"
+  },
+  "next": {
+    "title": "Components Reference",
+    "permalink": "/nextjs/components"
+  }
+}

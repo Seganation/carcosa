@@ -1,0 +1,30 @@
+{
+  "id": "nextjs/components",
+  "title": "Components Reference",
+  "description": "Complete guide to all Carcosa React components. Drop-in upload components with real-time progress, drag & drop, and TypeScript safety.",
+  "source": "@site/docs/nextjs/components.mdx",
+  "sourceDirName": "nextjs",
+  "slug": "/nextjs/components",
+  "permalink": "/nextjs/components",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/carcosa/carcosa/tree/main/apps/docs/docs/nextjs/components.mdx",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "title": "Components Reference",
+    "sidebar_position": 2
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Next.js Setup",
+    "permalink": "/nextjs/setup"
+  },
+  "next": {
+    "title": "File Router Overview",
+    "permalink": "/file-router/overview"
+  }
+}

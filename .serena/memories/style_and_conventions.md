@@ -1,0 +1,1 @@
+TypeScript strict, ESM NodeNext. Code style favors modular structure. Planned layering after restructure: config → middlewares → validations (zod) → services (Prisma/storage) → controllers → routes. Naming: descriptive, no abbreviations. UI uses Tailwind and shadcn-inspired components. Avoid Next.js API routes post-restructure; Express-only API. 

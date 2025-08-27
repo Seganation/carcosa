@@ -1,0 +1,677 @@
+---
+title: Components Reference
+sidebar_position: 2
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Components Reference
+
+Complete guide to all Carcosa React components. Drop-in upload components with real-time progress, drag & drop, and TypeScript safety.
+
+## CarcosaUploader
+
+The main upload component with built-in UI and progress tracking.
+
+### Basic Usage
+
+```tsx
+import { CarcosaUploader } from "@carcosa/nextjs";
+
+function MyComponent() {
+  return (
+    <CarcosaUploader
+      endpoint="imageUploader"
+      onUploadComplete={(files) => {
+        console.log("✅ Upload complete:", files);
+      }}
+    />
+  );
+}
+```
+
+### Props Reference
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `endpoint` | `keyof FileRouter` | **Required** | Upload endpoint from your router |
+| `onUploadComplete` | `(files: UploadedFile[]) => void` | `undefined` | Called when all uploads complete |
+| `onUploadError` | `(error: Error, file?: File) => void` | `undefined` | Called when upload fails |
+| `onUploadProgress` | `(progress: number, file: File) => void` | `undefined` | Called during upload progress |
+| `onUploadStart` | `(files: File[]) => void` | `undefined` | Called when upload starts |
+| `multiple` | `boolean` | `true` | Allow multiple file selection |
+| `disabled` | `boolean` | `false` | Disable the uploader |
+| `className` | `string` | `""` | CSS classes for styling |
+| `enableClipboard` | `boolean` | `true` | Enable paste-to-upload |
+| `maxFiles` | `number` | `undefined` | Maximum number of files |
+
+### Advanced Example
+
+```tsx
+import { CarcosaUploader } from "@carcosa/nextjs";
+import { useState } from "react";
+
+function AdvancedUploader() {
+  const [uploads, setUploads] = useState<UploadedFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  return (
+    <div className="space-y-4">
+      <CarcosaUploader
+        endpoint="galleryImages"
+        multiple={true}
+        maxFiles={10}
+        enableClipboard={true}
+        className="border-2 border-dashed border-blue-300 rounded-lg p-8"
+        
+        onUploadStart={(files) => {
+          setIsUploading(true);
+          console.log(`🚀 Starting upload of ${files.length} files`);
+        }}
+        
+        onUploadProgress={(progress, file) => {
+          console.log(`📊 ${file.name}: ${progress}%`);
+        }}
+        
+        onUploadComplete={(files) => {
+          setUploads(prev => [...prev, ...files]);
+          setIsUploading(false);
+          console.log("✅ All uploads complete:", files);
+        }}
+        
+        onUploadError={(error, file) => {
+          setIsUploading(false);
+          console.error("❌ Upload failed:", error, file);
+        }}
+      >
+        {/* Custom upload area content */}
+        <div className="text-center">
+          <h3 className="text-lg font-semibold">
+            {isUploading ? "Uploading..." : "Drop images here"}
+          </h3>
+          <p className="text-gray-500 mt-2">
+            Up to 10 images, 10MB each • 📋 Paste support enabled
+          </p>
+        </div>
+      </CarcosaUploader>
+      
+      {/* Show uploaded files */}
+      {uploads.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {uploads.map((file) => (
+            <img
+              key={file.key}
+              src={file.url}
+              alt={file.name}
+              className="w-full h-32 object-cover rounded"
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## CarcosaDropzone
+
+A flexible dropzone component for drag & drop uploads.
+
+### Basic Usage
+
+```tsx
+import { CarcosaDropzone } from "@carcosa/nextjs";
+
+function DropzoneExample() {
+  return (
+    <CarcosaDropzone
+      endpoint="documentUploader"
+      multiple={true}
+      className="min-h-40 border-2 border-dashed border-gray-300 rounded-lg"
+    >
+      <div className="flex flex-col items-center justify-center p-8">
+        <div className="text-4xl mb-4">📁</div>
+        <p className="text-lg font-medium">Drop documents here</p>
+        <p className="text-sm text-gray-500 mt-1">
+          PDF, DOC, DOCX up to 50MB
+        </p>
+      </div>
+    </CarcosaDropzone>
+  );
+}
+```
+
+### Props Reference
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `endpoint` | `keyof FileRouter` | **Required** | Upload endpoint from your router |
+| `children` | `ReactNode` | **Required** | Content to display in dropzone |
+| `onUploadComplete` | `(files: UploadedFile[]) => void` | `undefined` | Called when uploads complete |
+| `onUploadError` | `(error: Error) => void` | `undefined` | Called when upload fails |
+| `onDragEnter` | `() => void` | `undefined` | Called when files enter dropzone |
+| `onDragLeave` | `() => void` | `undefined` | Called when files leave dropzone |
+| `multiple` | `boolean` | `true` | Allow multiple files |
+| `disabled` | `boolean` | `false` | Disable the dropzone |
+| `className` | `string` | `""` | CSS classes for styling |
+
+### Interactive Dropzone
+
+```tsx
+import { CarcosaDropzone } from "@carcosa/nextjs";
+import { useState } from "react";
+
+function InteractiveDropzone() {
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [files, setFiles] = useState<UploadedFile[]>([]);
+  
+  return (
+    <div>
+      <CarcosaDropzone
+        endpoint="documentUploader"
+        multiple={true}
+        className={`
+          min-h-40 border-2 border-dashed rounded-lg transition-colors
+          ${isDragActive 
+            ? 'border-blue-400 bg-blue-50' 
+            : 'border-gray-300 bg-gray-50'
+          }
+        `}
+        onDragEnter={() => setIsDragActive(true)}
+        onDragLeave={() => setIsDragActive(false)}
+        onUploadComplete={(uploadedFiles) => {
+          setFiles(prev => [...prev, ...uploadedFiles]);
+          setIsDragActive(false);
+        }}
+      >
+        <div className="flex flex-col items-center justify-center p-8">
+          <div className={`text-4xl mb-4 transition-transform ${
+            isDragActive ? 'scale-110' : 'scale-100'
+          }`}>
+            {isDragActive ? '⬇️' : '📄'}
+          </div>
+          <p className="text-lg font-medium">
+            {isDragActive ? 'Drop files here!' : 'Drag documents here'}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Or click to browse
+          </p>
+        </div>
+      </CarcosaDropzone>
+      
+      {/* File list */}
+      {files.length > 0 && (
+        <div className="mt-6 space-y-2">
+          <h3 className="font-semibold">Uploaded Files:</h3>
+          {files.map((file) => (
+            <div key={file.key} className="flex items-center space-x-3 p-2 bg-gray-100 rounded">
+              <span>📄</span>
+              <span className="flex-1">{file.name}</span>
+              <a 
+                href={file.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                View
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## CarcosaButton
+
+Simple button component that triggers file selection.
+
+### Basic Usage
+
+```tsx
+import { CarcosaButton } from "@carcosa/nextjs";
+
+function ButtonExample() {
+  return (
+    <CarcosaButton
+      endpoint="profilePicture"
+      onUploadComplete={(files) => {
+        console.log("Profile updated:", files[0]);
+      }}
+    >
+      📸 Update Profile Picture
+    </CarcosaButton>
+  );
+}
+```
+
+### Custom Button Styling
+
+```tsx
+import { CarcosaButton } from "@carcosa/nextjs";
+
+function StyledButton() {
+  return (
+    <CarcosaButton
+      endpoint="documentUploader"
+      multiple={false}
+      className="
+        bg-blue-600 hover:bg-blue-700 
+        text-white font-semibold 
+        px-6 py-3 rounded-lg 
+        transition-colors duration-200
+        focus:outline-none focus:ring-2 focus:ring-blue-500
+      "
+      onUploadComplete={(files) => {
+        alert(`Uploaded: ${files[0].name}`);
+      }}
+    >
+      📁 Choose Document
+    </CarcosaButton>
+  );
+}
+```
+
+## ProgressBar
+
+Standalone progress bar component for custom UIs.
+
+### Basic Usage
+
+```tsx
+import { ProgressBar, useUploadProgress } from "@carcosa/nextjs";
+
+function CustomUploadUI() {
+  const { progress, isUploading, upload } = useUploadProgress("imageUploader");
+  
+  return (
+    <div className="space-y-4">
+      <input
+        type="file"
+        multiple
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          upload(files);
+        }}
+        className="block w-full text-sm text-gray-500 
+          file:mr-4 file:py-2 file:px-4
+          file:rounded-full file:border-0
+          file:text-sm file:font-semibold
+          file:bg-blue-50 file:text-blue-700
+          hover:file:bg-blue-100"
+      />
+      
+      {isUploading && (
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Uploading...</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <ProgressBar progress={progress} />
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### Advanced Progress Display
+
+```tsx
+import { ProgressBar, useUploadProgress } from "@carcosa/nextjs";
+
+function DetailedProgress() {
+  const { 
+    progress, 
+    isUploading, 
+    uploadedFiles,
+    failedFiles,
+    activeUploads,
+    upload 
+  } = useUploadProgress("documentUploader");
+  
+  return (
+    <div className="max-w-md mx-auto space-y-4">
+      <input
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx"
+        onChange={(e) => upload(Array.from(e.target.files || []))}
+        className="block w-full"
+      />
+      
+      {isUploading && (
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="font-medium">Overall Progress</span>
+            <span className="text-sm text-gray-500">
+              {Math.round(progress)}%
+            </span>
+          </div>
+          
+          <ProgressBar 
+            progress={progress} 
+            className="h-2 bg-gray-200 rounded-full overflow-hidden"
+            barClassName="bg-blue-600 transition-all duration-300"
+          />
+          
+          <div className="text-sm text-gray-600 space-y-1">
+            <div>✅ Completed: {uploadedFiles.length}</div>
+            <div>⏳ Active: {activeUploads.length}</div>
+            {failedFiles.length > 0 && (
+              <div>❌ Failed: {failedFiles.length}</div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Show uploaded files */}
+      {uploadedFiles.map((file) => (
+        <div key={file.key} className="flex items-center justify-between p-3 bg-green-50 rounded">
+          <span className="text-green-800">✅ {file.name}</span>
+          <a 
+            href={file.url} 
+            className="text-green-600 hover:underline text-sm"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View
+          </a>
+        </div>
+      ))}
+      
+      {/* Show failed files */}
+      {failedFiles.map((file) => (
+        <div key={file.name} className="flex items-center justify-between p-3 bg-red-50 rounded">
+          <span className="text-red-800">❌ {file.name}</span>
+          <button 
+            onClick={() => upload([file])}
+            className="text-red-600 hover:underline text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## Advanced Features
+
+### Clipboard Upload Support
+
+Enable paste-to-upload on any component:
+
+```tsx
+import { CarcosaUploader } from "@carcosa/nextjs";
+
+function ClipboardUploader() {
+  return (
+    <CarcosaUploader
+      endpoint="imageUploader"
+      enableClipboard={true} // ✨ Enable clipboard uploads
+      onClipboardUpload={(files) => {
+        console.log("📋 Files pasted:", files);
+      }}
+      className="min-h-40 border-2 border-dashed border-blue-300 rounded-lg"
+    >
+      <div className="text-center p-8">
+        <h3 className="text-lg font-semibold">Upload Images</h3>
+        <p className="text-gray-500 mt-2">
+          Drag & drop, click to browse, or paste images
+        </p>
+        <p className="text-sm text-gray-400 mt-1">
+          📋 Try copying an image and pasting here!
+        </p>
+      </div>
+    </CarcosaUploader>
+  );
+}
+```
+
+### Form Integration
+
+Integrate with React Hook Form:
+
+```tsx
+import { CarcosaUploader } from "@carcosa/nextjs";
+import { useForm, Controller } from "react-hook-form";
+
+interface FormData {
+  title: string;
+  description: string;
+  attachments: UploadedFile[];
+}
+
+function FormWithUploads() {
+  const { control, handleSubmit, setValue, watch } = useForm<FormData>();
+  
+  const attachments = watch("attachments") || [];
+  
+  const onSubmit = (data: FormData) => {
+    console.log("Form submitted:", data);
+    // data.attachments contains the uploaded files
+  };
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium mb-2">Title</label>
+        <Controller
+          name="title"
+          control={control}
+          render={({ field }) => (
+            <input 
+              {...field} 
+              className="w-full p-2 border rounded"
+              placeholder="Enter title..."
+            />
+          )}
+        />
+      </div>
+      
+      <div>
+        <label className="block text-sm font-medium mb-2">Description</label>
+        <Controller
+          name="description"
+          control={control}
+          render={({ field }) => (
+            <textarea 
+              {...field} 
+              className="w-full p-2 border rounded h-24"
+              placeholder="Enter description..."
+            />
+          )}
+        />
+      </div>
+      
+      <div>
+        <label className="block text-sm font-medium mb-2">Attachments</label>
+        <CarcosaUploader
+          endpoint="documentUploader"
+          multiple={true}
+          onUploadComplete={(files) => {
+            setValue("attachments", [...attachments, ...files]);
+          }}
+          className="border-2 border-dashed border-gray-300 rounded-lg"
+        >
+          <div className="text-center p-6">
+            <p>Drop files here or click to browse</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {attachments.length} files attached
+            </p>
+          </div>
+        </CarcosaUploader>
+        
+        {/* Show attached files */}
+        {attachments.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {attachments.map((file) => (
+              <div key={file.key} className="flex items-center justify-between p-2 bg-gray-100 rounded">
+                <span>{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newAttachments = attachments.filter(f => f.key !== file.key);
+                    setValue("attachments", newAttachments);
+                  }}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      <button
+        type="submit"
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+      >
+        Submit Form
+      </button>
+    </form>
+  );
+}
+```
+
+## Styling & Theming
+
+### Custom CSS Classes
+
+All components accept `className` prop for custom styling:
+
+```tsx
+<CarcosaUploader
+  endpoint="imageUploader"
+  className="
+    bg-gradient-to-r from-blue-50 to-purple-50
+    border-2 border-dashed border-blue-300
+    rounded-xl p-8
+    hover:border-blue-400 
+    transition-colors duration-200
+  "
+>
+  <div className="text-center">
+    <div className="text-4xl mb-4">🖼️</div>
+    <h3 className="text-xl font-semibold text-gray-800">
+      Upload Images
+    </h3>
+    <p className="text-gray-600 mt-2">
+      Drag & drop or click to browse
+    </p>
+  </div>
+</CarcosaUploader>
+```
+
+### Theme Configuration
+
+Configure global theming via the provider:
+
+```tsx
+import { CarcosaProvider } from "@carcosa/nextjs";
+
+function App() {
+  return (
+    <CarcosaProvider
+      config={{
+        appearance: {
+          theme: "dark", // "light" | "dark" | "auto"
+          accentColor: "#3b82f6",
+          borderRadius: "12px",
+          fontFamily: "Inter, sans-serif",
+        },
+        
+        // Custom CSS variables
+        cssVariables: {
+          "--carcosa-primary": "#3b82f6",
+          "--carcosa-success": "#10b981",
+          "--carcosa-error": "#ef4444",
+          "--carcosa-border-radius": "12px",
+        }
+      }}
+    >
+      {/* Your app */}
+    </CarcosaProvider>
+  );
+}
+```
+
+## Error Handling
+
+### Global Error Handling
+
+```tsx
+import { CarcosaProvider } from "@carcosa/nextjs";
+
+function App() {
+  return (
+    <CarcosaProvider
+      config={{
+        onError: (error, context) => {
+          console.error("Carcosa error:", error);
+          
+          // Send to error tracking service
+          if (context.file) {
+            console.error(`Failed to upload: ${context.file.name}`);
+          }
+          
+          // Show user-friendly message
+          toast.error("Upload failed. Please try again.");
+        }
+      }}
+    >
+      {/* Your app */}
+    </CarcosaProvider>
+  );
+}
+```
+
+### Component-Level Error Handling
+
+```tsx
+function RobustUploader() {
+  const [error, setError] = useState<string | null>(null);
+  
+  return (
+    <div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded p-4 mb-4">
+          <p className="text-red-800">{error}</p>
+          <button 
+            onClick={() => setError(null)}
+            className="text-red-600 underline mt-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      
+      <CarcosaUploader
+        endpoint="imageUploader"
+        onUploadError={(error, file) => {
+          const message = file 
+            ? `Failed to upload ${file.name}: ${error.message}`
+            : `Upload failed: ${error.message}`;
+          setError(message);
+        }}
+        onUploadComplete={() => {
+          setError(null); // Clear errors on success
+        }}
+      />
+    </div>
+  );
+}
+```
+
+## Next Steps
+
+- **[Hooks Reference](/nextjs/hooks)** - Master the upload hooks
+- **[Forms Integration](/nextjs/forms)** - Integrate with form libraries
+- **[File Router](/file-router/overview)** - Configure upload endpoints
+- **[API Reference](/api-reference/overview)** - Complete API documentation

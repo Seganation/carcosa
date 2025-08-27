@@ -1,0 +1,41 @@
+{
+  "name": "@carcosa/file-router-demo",
+  "version": "1.0.0",
+  "description": "Live demo of Carcosa File Router - The UploadThing Killer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo:api": "tsx api-demo.ts",
+    "demo:react": "vite react-demo.tsx --port 3001",
+    "demo:build": "tsc --noEmit",
+    "demo:start": "concurrently \"npm run demo:api\" \"npm run demo:react\"",
+    "demo:test": "curl -X POST http://localhost:4001/health"
+  },
+  "dependencies": {
+    "@carcosa/file-router": "../",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "tsx": "^4.19.2",
+    "vite": "^5.0.0",
+    "typescript": "5.8.3",
+    "concurrently": "^8.2.0"
+  },
+  "keywords": [
+    "file-upload",
+    "uploadthing",
+    "demo",
+    "real-time",
+    "multi-storage",
+    "typescript"
+  ],
+  "author": "Carcosa Team",
+  "license": "MIT"
+}

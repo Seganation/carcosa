@@ -1,0 +1,30 @@
+{
+  "id": "installation",
+  "title": "Installation",
+  "description": "Get Carcosa installed and running in your project. This guide covers all supported frameworks and deployment scenarios.",
+  "source": "@site/docs/installation.mdx",
+  "sourceDirName": ".",
+  "slug": "/installation",
+  "permalink": "/installation",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/carcosa/carcosa/tree/main/apps/docs/docs/installation.mdx",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "title": "Installation",
+    "sidebar_position": 3
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Quick Start",
+    "permalink": "/quick-start"
+  },
+  "next": {
+    "title": "Configuration",
+    "permalink": "/configuration"
+  }
+}

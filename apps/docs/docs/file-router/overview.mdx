@@ -1,0 +1,681 @@
+---
+title: File Router Overview
+sidebar_position: 1
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# File Router Overview
+
+The File Router is the heart of Carcosa - a type-safe, middleware-powered system for defining upload endpoints. Think of it as "tRPC for file uploads" with built-in validation, transformations, and real-time progress.
+
+## Core Concepts
+
+### 🎯 **Type-Safe Routes**
+
+Every upload endpoint is fully typed from server to client:
+
+```typescript
+// Server: Define your routes
+const fileRouter = createUploadRouter<{
+  userId: string;
+  projectId: string;
+}>()
+  .addRoute("profilePicture", 
+    f.imageUploader({ maxFileSize: "2MB" })
+    .middleware(async ({ req }) => {
+      return { 
+        userId: req.user.id,
+        projectId: req.user.projectId 
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      // metadata is fully typed! 
+      console.log(`User ${metadata.userId} uploaded ${file.name}`);
+    })
+  );
+
+// Client: Automatic type inference
+<CarcosaUploader 
+  endpoint="profilePicture" // ✅ TypeScript knows this exists
+  onUploadComplete={(files) => {
+    // files are typed as UploadedFile[]
+  }} 
+/>
+```
+
+### 🔒 **Middleware Pipeline**
+
+Secure your uploads with a powerful middleware system:
+
+```typescript
+const fileRouter = createUploadRouter<{
+  userId: string;
+  organizationId: string;
+  permissions: string[];
+}>()
+  .addRoute("sensitiveDocuments",
+    f.fileUploader({ maxFileSize: "100MB" })
+    
+    // 1. Authentication
+    .middleware(async ({ req }) => {
+      const user = await authenticate(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { 
+        userId: user.id,
+        organizationId: user.organizationId,
+        permissions: user.permissions
+      };
+    })
+    
+    // 2. Authorization  
+    .middleware(async ({ req, ctx }) => {
+      const hasPermission = ctx.permissions.includes("upload:documents");
+      if (!hasPermission) throw new Error("Insufficient permissions");
+      
+      return ctx; // Pass through existing context
+    })
+    
+    // 3. Rate limiting
+    .middleware(async ({ req, ctx }) => {
+      await rateLimit.check(ctx.userId, "document-upload", 10); // 10 per hour
+      return ctx;
+    })
+    
+    .onUploadComplete(async ({ metadata, file }) => {
+      // All middleware context is available here
+      await auditLog.create({
+        action: "document.upload",
+        userId: metadata.userId,
+        organizationId: metadata.organizationId,
+        fileId: file.key
+      });
+    })
+  );
+```
+
+### 🖼️ **Built-in File Types**
+
+Specialized uploaders for different file types:
+
+<Tabs>
+<TabItem value="images" label="Image Uploader">
+
+```typescript
+// Automatic image optimization and transformations
+f.imageUploader({
+  maxFileSize: "10MB",
+  maxFileCount: 5,
+  acceptedTypes: ["image/jpeg", "image/png", "image/webp"],
+  
+  // Automatic transformations
+  transforms: {
+    thumbnail: { width: 150, height: 150, fit: "cover" },
+    medium: { width: 500, height: 500, fit: "inside" },
+    large: { width: 1200, height: 1200, fit: "inside" },
+    
+    // Advanced transformations
+    watermark: {
+      text: "© MyApp",
+      position: "bottom-right",
+      opacity: 0.7
+    },
+    
+    // Format optimization
+    webp: { quality: 80 },
+    avif: { quality: 70 }
+  }
+})
+.onUploadComplete(async ({ file }) => {
+  console.log("Original:", file.url);
+  console.log("Thumbnail:", file.transforms.thumbnail);
+  console.log("WebP version:", file.transforms.webp);
+});
+```
+
+</TabItem>
+<TabItem value="videos" label="Video Uploader">
+
+```typescript
+// Video processing with background queues
+f.videoUploader({
+  maxFileSize: "500MB",
+  maxFileCount: 3,
+  acceptedTypes: ["video/mp4", "video/webm", "video/quicktime"],
+  
+  // Video processing pipeline
+  processing: {
+    // Multiple quality versions
+    formats: [
+      { resolution: "720p", bitrate: "1500k" },
+      { resolution: "1080p", bitrate: "3000k" },
+      { resolution: "480p", bitrate: "800k" }
+    ],
+    
+    // Generate thumbnails
+    thumbnails: [
+      { time: "00:00:02", width: 320, height: 180 },
+      { time: "25%", width: 640, height: 360 }
+    ],
+    
+    // Create preview clips
+    previews: [
+      { start: "00:00:00", duration: 10 },
+      { start: "25%", duration: 5 }
+    ]
+  }
+})
+.onUploadComplete(async ({ file }) => {
+  console.log("Original video:", file.url);
+  console.log("720p version:", file.transforms["720p"]);
+  console.log("Thumbnail:", file.transforms.thumbnail);
+  
+  // Queue background processing
+  await videoProcessor.queue({
+    fileKey: file.key,
+    formats: ["720p", "1080p", "480p"]
+  });
+});
+```
+
+</TabItem>
+<TabItem value="documents" label="Document Uploader">
+
+```typescript
+// Document processing and validation
+f.documentUploader({
+  maxFileSize: "50MB",
+  maxFileCount: 10,
+  acceptedTypes: [".pdf", ".doc", ".docx", ".txt", ".csv"],
+  
+  // Document processing options
+  processing: {
+    // Extract text for search
+    extractText: true,
+    
+    // Generate preview images
+    generatePreview: true,
+    
+    // Virus scanning
+    virusScan: true,
+    
+    // Metadata extraction
+    extractMetadata: true
+  }
+})
+.onUploadComplete(async ({ file, metadata }) => {
+  console.log("Document uploaded:", file.url);
+  console.log("Extracted text:", file.extractedText);
+  console.log("Preview image:", file.previewUrl);
+  
+  // Index for search
+  await searchIndex.add({
+    id: file.key,
+    filename: file.name,
+    content: file.extractedText,
+    userId: metadata.userId
+  });
+});
+```
+
+</TabItem>
+<TabItem value="generic" label="Generic Files">
+
+```typescript
+// Any file type with custom validation
+f.fileUploader({
+  maxFileSize: "100MB",
+  maxFileCount: 1,
+  acceptedTypes: [".zip", ".tar.gz", ".dmg"], // Custom types
+  
+  // Custom validation
+  validate: async (file) => {
+    // Check file signature
+    const signature = await getFileSignature(file);
+    if (!isValidArchive(signature)) {
+      throw new Error("Invalid archive file");
+    }
+    
+    // Size-based validation
+    if (file.size > 100 * 1024 * 1024) { // 100MB
+      throw new Error("Archive too large");
+    }
+    
+    return true;
+  }
+})
+.onUploadComplete(async ({ file }) => {
+  // Queue extraction job
+  await archiveProcessor.extract({
+    fileKey: file.key,
+    extractTo: `extracted/${file.key}/`
+  });
+});
+```
+
+</TabItem>
+</Tabs>
+
+## Router Configuration
+
+### Basic Router Setup
+
+```typescript
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+// Define your context type
+interface UploadContext {
+  userId: string;
+  organizationId: string;
+  projectId?: string;
+}
+
+const fileRouter = createUploadRouter<UploadContext>()
+  
+  // Profile pictures
+  .addRoute("profilePicture",
+    f.imageUploader({
+      maxFileSize: "2MB",
+      maxFileCount: 1,
+      transforms: {
+        avatar: { width: 128, height: 128, fit: "cover" }
+      }
+    })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      return { 
+        userId: user.id,
+        organizationId: user.organizationId 
+      };
+    })
+  )
+  
+  // Project files
+  .addRoute("projectFiles",
+    f.fileUploader({
+      maxFileSize: "50MB",
+      maxFileCount: 20
+    })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      const projectId = req.headers.get("x-project-id");
+      
+      // Verify project access
+      const hasAccess = await checkProjectAccess(user.id, projectId);
+      if (!hasAccess) throw new Error("No project access");
+      
+      return {
+        userId: user.id,
+        organizationId: user.organizationId,
+        projectId: projectId!
+      };
+    })
+  );
+
+export default fileRouter;
+export type FileRouter = typeof fileRouter;
+```
+
+### Advanced Router Features
+
+<Tabs>
+<TabItem value="conditional" label="Conditional Routes">
+
+```typescript
+// Routes that change based on user tier
+const fileRouter = createUploadRouter<{
+  userId: string;
+  tier: "free" | "pro" | "enterprise";
+}>()
+  .addRoute("images",
+    f.imageUploader({
+      // Dynamic limits based on user tier
+      maxFileSize: (ctx) => {
+        switch (ctx.tier) {
+          case "free": return "2MB";
+          case "pro": return "10MB";
+          case "enterprise": return "50MB";
+        }
+      },
+      
+      maxFileCount: (ctx) => {
+        switch (ctx.tier) {
+          case "free": return 5;
+          case "pro": return 50;
+          case "enterprise": return 500;
+        }
+      },
+      
+      // Pro+ features
+      transforms: (ctx) => ctx.tier !== "free" ? {
+        thumbnail: { width: 150, height: 150 },
+        webp: { quality: 80 }
+      } : undefined
+    })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      return {
+        userId: user.id,
+        tier: user.tier
+      };
+    })
+  );
+```
+
+</TabItem>
+<TabItem value="nested" label="Nested Routes">
+
+```typescript
+// Organize routes with prefixes
+const fileRouter = createUploadRouter()
+  
+  // User routes: /api/upload/user/*
+  .namespace("user", (router) => 
+    router
+      .addRoute("avatar", f.imageUploader({ maxFileSize: "2MB" }))
+      .addRoute("documents", f.documentUploader({ maxFileSize: "10MB" }))
+  )
+  
+  // Admin routes: /api/upload/admin/*
+  .namespace("admin", (router) =>
+    router
+      .addRoute("siteBanner", f.imageUploader({ maxFileSize: "5MB" }))
+      .addRoute("bulkImport", f.fileUploader({ maxFileSize: "100MB" }))
+      .middleware(async ({ req }) => {
+        // Admin-only middleware
+        const user = await getUser(req);
+        if (!user.isAdmin) throw new Error("Admin required");
+        return { userId: user.id };
+      })
+  );
+```
+
+</TabItem>
+<TabItem value="versioned" label="Versioned Routes">
+
+```typescript
+// API versioning
+const fileRouter = createUploadRouter()
+  
+  // V1 routes (legacy)
+  .version("v1", (router) =>
+    router.addRoute("upload", f.fileUploader({
+      maxFileSize: "10MB" // Old limits
+    }))
+  )
+  
+  // V2 routes (current)
+  .version("v2", (router) =>
+    router
+      .addRoute("images", f.imageUploader({
+        maxFileSize: "50MB", // Increased limits
+        transforms: { 
+          // New transformation features
+          thumbnail: { width: 300, height: 300 },
+          webp: { quality: 85 }
+        }
+      }))
+      .addRoute("documents", f.documentUploader({
+        maxFileSize: "100MB",
+        processing: {
+          extractText: true, // New feature
+          generatePreview: true
+        }
+      }))
+  );
+
+// Usage: POST /api/upload/v2/images
+```
+
+</TabItem>
+</Tabs>
+
+## Middleware System
+
+### Built-in Middleware
+
+Carcosa provides several built-in middleware functions:
+
+```typescript
+import { 
+  authMiddleware,
+  rateLimitMiddleware,
+  quotaMiddleware,
+  auditMiddleware 
+} from "@carcosa/file-router/middleware";
+
+const fileRouter = createUploadRouter()
+  .addRoute("protectedUpload",
+    f.fileUploader({ maxFileSize: "10MB" })
+    
+    // Authentication middleware
+    .use(authMiddleware({
+      getUser: async (req) => {
+        // Your auth logic
+        return await getUserFromToken(req.headers.authorization);
+      }
+    }))
+    
+    // Rate limiting
+    .use(rateLimitMiddleware({
+      max: 100, // requests
+      window: "1h", // per hour
+      keyGenerator: (ctx) => ctx.userId
+    }))
+    
+    // Storage quota checking
+    .use(quotaMiddleware({
+      getQuota: async (ctx) => {
+        const user = await getUser(ctx.userId);
+        return user.storageQuota;
+      },
+      getUsage: async (ctx) => {
+        return await calculateStorageUsage(ctx.userId);
+      }
+    }))
+    
+    // Audit logging
+    .use(auditMiddleware({
+      logger: auditLogger,
+      includeFileMetadata: true
+    }))
+  );
+```
+
+### Custom Middleware
+
+Create your own middleware:
+
+```typescript
+// Project access middleware
+const projectAccessMiddleware = (requiredRole: "viewer" | "editor" | "admin") => {
+  return async ({ req, ctx }: MiddlewareContext) => {
+    const projectId = req.headers.get("x-project-id");
+    if (!projectId) throw new Error("Project ID required");
+    
+    const access = await getProjectAccess(ctx.userId, projectId);
+    if (!access || !hasRole(access.role, requiredRole)) {
+      throw new Error("Insufficient project permissions");
+    }
+    
+    return {
+      ...ctx,
+      projectId,
+      projectRole: access.role
+    };
+  };
+};
+
+// Organization quota middleware
+const orgQuotaMiddleware = async ({ ctx }: MiddlewareContext) => {
+  const usage = await getOrgStorageUsage(ctx.organizationId);
+  const limit = await getOrgStorageLimit(ctx.organizationId);
+  
+  if (usage >= limit) {
+    throw new Error("Organization storage quota exceeded");
+  }
+  
+  return {
+    ...ctx,
+    remainingQuota: limit - usage
+  };
+};
+
+// Usage
+const fileRouter = createUploadRouter()
+  .addRoute("projectFiles",
+    f.fileUploader({ maxFileSize: "25MB" })
+    .use(authMiddleware())
+    .use(projectAccessMiddleware("editor"))
+    .use(orgQuotaMiddleware)
+    .onUploadComplete(async ({ metadata, file }) => {
+      // All middleware context available
+      console.log(`Project ${metadata.projectId} file upload by ${metadata.userId}`);
+    })
+  );
+```
+
+## Event Handlers
+
+### Upload Lifecycle Events
+
+Handle every stage of the upload process:
+
+```typescript
+const fileRouter = createUploadRouter()
+  .addRoute("documents",
+    f.documentUploader({ maxFileSize: "50MB" })
+    
+    // Before upload starts
+    .onUploadStart(async ({ metadata, files }) => {
+      console.log(`Starting upload of ${files.length} files for user ${metadata.userId}`);
+      
+      // Pre-flight checks
+      await validateUserQuota(metadata.userId, files);
+      
+      // Create upload session
+      const sessionId = await createUploadSession({
+        userId: metadata.userId,
+        fileCount: files.length,
+        totalSize: files.reduce((sum, f) => sum + f.size, 0)
+      });
+      
+      return { sessionId };
+    })
+    
+    // During upload (progress updates)
+    .onUploadProgress(async ({ metadata, file, progress }) => {
+      // Real-time progress tracking
+      await updateUploadProgress(metadata.sessionId, file.name, progress);
+      
+      // Emit to connected clients
+      io.to(`user-${metadata.userId}`).emit("upload-progress", {
+        fileId: file.name,
+        progress
+      });
+    })
+    
+    // After successful upload
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log(`✅ Upload complete: ${file.name}`);
+      
+      // Save to database
+      await saveFileRecord({
+        key: file.key,
+        name: file.name,
+        url: file.url,
+        size: file.size,
+        userId: metadata.userId,
+        sessionId: metadata.sessionId
+      });
+      
+      // Process file (extract text, generate preview, etc.)
+      await queueFileProcessing(file.key);
+      
+      // Send notification
+      await sendNotification(metadata.userId, {
+        type: "upload-complete",
+        message: `File "${file.name}" uploaded successfully`
+      });
+    })
+    
+    // On upload failure
+    .onUploadError(async ({ metadata, file, error }) => {
+      console.error(`❌ Upload failed: ${file?.name}`, error);
+      
+      // Log error
+      await logUploadError({
+        userId: metadata.userId,
+        fileName: file?.name,
+        error: error.message,
+        sessionId: metadata.sessionId
+      });
+      
+      // Clean up partial uploads
+      if (file?.key) {
+        await cleanupFailedUpload(file.key);
+      }
+      
+      // Notify user
+      await sendNotification(metadata.userId, {
+        type: "upload-error",
+        message: `Failed to upload "${file?.name}": ${error.message}`
+      });
+    })
+  );
+```
+
+### Global Event Handlers
+
+Handle events across all routes:
+
+```typescript
+const fileRouter = createUploadRouter()
+  
+  // Global middleware
+  .use(async ({ req }) => {
+    // Applied to all routes
+    const user = await getUser(req);
+    return { userId: user.id };
+  })
+  
+  // Global event handlers
+  .onAnyUploadStart(async ({ route, metadata, files }) => {
+    console.log(`Upload started on route "${route}" by user ${metadata.userId}`);
+    await metrics.increment("uploads.started", {
+      route,
+      fileCount: files.length
+    });
+  })
+  
+  .onAnyUploadComplete(async ({ route, metadata, file }) => {
+    console.log(`Upload completed on route "${route}"`);
+    await metrics.increment("uploads.completed", { route });
+    await metrics.histogram("upload.size", file.size, { route });
+  })
+  
+  .onAnyUploadError(async ({ route, metadata, error }) => {
+    console.error(`Upload error on route "${route}":`, error);
+    await metrics.increment("uploads.failed", { route });
+    await errorTracking.captureException(error, {
+      route,
+      userId: metadata.userId
+    });
+  })
+  
+  // Add your routes
+  .addRoute("images", f.imageUploader())
+  .addRoute("documents", f.documentUploader());
+```
+
+## Next Steps
+
+Now that you understand the File Router basics:
+
+- **[Typed Routes](/file-router/typed-routes)** - Master type-safe routing
+- **[Middleware](/file-router/middleware)** - Build powerful middleware chains
+- **[Transformations](/file-router/transformations)** - Image & video processing
+- **[Streaming](/file-router/streaming)** - Handle large file uploads
+- **[Examples](/examples/basic-upload)** - See complete working examples

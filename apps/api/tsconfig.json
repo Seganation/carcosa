@@ -4,7 +4,10 @@
   "compilerOptions": {
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "prisma/**/*.ts"],
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../packages/database" }
+  ],
   "exclude": ["node_modules", "dist"]
 }
 

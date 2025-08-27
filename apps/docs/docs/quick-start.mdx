@@ -1,0 +1,442 @@
+---
+title: Quick Start
+sidebar_position: 2
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import CodeBlock from '@theme/CodeBlock';
+
+# 🚀 Quick Start
+
+Get up and running with Carcosa in less than 5 minutes! This guide will have you uploading files with real-time progress in no time.
+
+## Prerequisites
+
+- Node.js 18+ 
+- A React or Next.js project
+- Basic knowledge of TypeScript (recommended)
+
+## Installation
+
+<div className="install-step">
+  <h4>Step 1: Install Carcosa</h4>
+  
+  Choose the package that fits your setup:
+</div>
+
+<Tabs>
+<TabItem value="nextjs" label="Next.js App">
+
+```bash
+npm install @carcosa/nextjs @carcosa/file-router
+```
+
+</TabItem>
+<TabItem value="react" label="React App">
+
+```bash
+npm install @carcosa/react @carcosa/file-router
+```
+
+</TabItem>
+<TabItem value="vanilla" label="Vanilla JavaScript">
+
+```bash
+npm install @carcosa/sdk
+```
+
+</TabItem>
+</Tabs>
+
+<div className="install-step">
+  <h4>Step 2: Environment Setup</h4>
+  
+  Add your environment variables:
+</div>
+
+```bash title=".env.local"
+# Database (required)
+DATABASE_URL="postgresql://user:password@localhost:5432/carcosa"
+
+# Storage (choose one)
+AWS_ACCESS_KEY_ID="your-aws-key"
+AWS_SECRET_ACCESS_KEY="your-aws-secret"
+AWS_REGION="us-east-1"
+AWS_BUCKET="your-bucket"
+
+# OR Cloudflare R2
+R2_ACCOUNT_ID="your-account-id"
+R2_ACCESS_KEY_ID="your-r2-key"
+R2_SECRET_ACCESS_KEY="your-r2-secret"
+R2_BUCKET="your-bucket"
+
+# API Configuration
+CARCOSA_SECRET="your-super-secret-key-change-this"
+NEXT_PUBLIC_CARCOSA_ENDPOINT="http://localhost:3000"
+```
+
+<div className="install-step">
+  <h4>Step 3: Create Upload Router</h4>
+  
+  Define your file upload endpoints with type safety:
+</div>
+
+<Tabs>
+<TabItem value="app-router" label="Next.js App Router">
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+}>()
+  // 🖼️ Image uploads with automatic transformations
+  .addRoute("imageUploader", 
+    f.imageUploader({ 
+      maxFileSize: "4MB",
+      maxFileCount: 10 
+    })
+    .middleware(async ({ req }) => {
+      // Add authentication logic here
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("✅ Upload complete for user:", metadata.userId);
+      console.log("📄 File URL:", file.url);
+      
+      // Save to database, send notifications, etc.
+    })
+  )
+  
+  // 📄 Document uploads
+  .addRoute("documentUploader",
+    f.fileUploader({
+      maxFileSize: "50MB",
+      maxFileCount: 5,
+      acceptedTypes: [".pdf", ".doc", ".docx", ".txt"]
+    })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("📁 Document uploaded:", file.name);
+    })
+  );
+
+export default fileRouter;
+
+// Export type for client-side usage
+export type FileRouter = typeof fileRouter;
+```
+
+```typescript title="app/api/uploadthing/route.ts"
+import { createCarcosaApiHandler } from "@carcosa/nextjs";
+import fileRouter from "./core";
+
+const { GET, POST } = createCarcosaApiHandler({
+  router: fileRouter,
+});
+
+export { GET, POST };
+```
+
+</TabItem>
+<TabItem value="pages-router" label="Next.js Pages Router">
+
+```typescript title="pages/api/uploadthing.ts"
+import { createCarcosaApiHandler } from "@carcosa/nextjs";
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+}>()
+  .addRoute("imageUploader", 
+    f.imageUploader({ maxFileSize: "4MB" })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Upload complete:", file.url);
+    })
+  );
+
+export default createCarcosaApiHandler({
+  router: fileRouter,
+});
+
+export type FileRouter = typeof fileRouter;
+```
+
+</TabItem>
+</Tabs>
+
+<div className="install-step">
+  <h4>Step 4: Client Configuration</h4>
+  
+  Set up the client-side provider:
+</div>
+
+<Tabs>
+<TabItem value="app-layout" label="App Router Layout">
+
+```typescript title="app/layout.tsx"
+import { CarcosaProvider } from "@carcosa/nextjs";
+import type { FileRouter } from "./api/uploadthing/core";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html>
+      <body>
+        <CarcosaProvider<FileRouter>
+          endpoint="/api/uploadthing"
+          config={{
+            appearance: {
+              theme: "auto", // "light" | "dark" | "auto"
+              accentColor: "#2563eb",
+            },
+          }}
+        >
+          {children}
+        </CarcosaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+</TabItem>
+<TabItem value="pages-app" label="Pages Router App">
+
+```typescript title="pages/_app.tsx"
+import { CarcosaProvider } from "@carcosa/nextjs";
+import type { FileRouter } from "./api/uploadthing";
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <CarcosaProvider<FileRouter>
+      endpoint="/api/uploadthing"
+    >
+      <Component {...pageProps} />
+    </CarcosaProvider>
+  );
+}
+```
+
+</TabItem>
+</Tabs>
+
+<div className="install-step">
+  <h4>Step 5: Add Upload Components</h4>
+  
+  Drop in Carcosa components anywhere in your app:
+</div>
+
+```tsx title="components/UploadButton.tsx"
+import { 
+  CarcosaUploader,
+  CarcosaDropzone 
+} from "@carcosa/nextjs";
+
+export function ImageUploader() {
+  return (
+    <CarcosaUploader
+      endpoint="imageUploader"
+      onUploadComplete={(files) => {
+        console.log("✅ Files uploaded:", files);
+        // Handle successful upload
+      }}
+      onUploadError={(error) => {
+        console.error("❌ Upload error:", error);
+        // Handle upload error
+      }}
+      className="bg-blue-50 border-2 border-dashed border-blue-300"
+    />
+  );
+}
+
+export function DocumentDropzone() {
+  return (
+    <CarcosaDropzone
+      endpoint="documentUploader"
+      multiple={true}
+      className="min-h-32 border-2 border-dashed border-gray-300"
+    >
+      <div className="text-center p-8">
+        <p>Drop documents here or click to browse</p>
+        <p className="text-sm text-gray-500">
+          PDF, DOC, DOCX up to 50MB
+        </p>
+      </div>
+    </CarcosaDropzone>
+  );
+}
+```
+
+<div className="install-step">
+  <h4>Step 6: Use in Your Pages</h4>
+  
+  Add the upload components to your pages:
+</div>
+
+```tsx title="app/upload/page.tsx"
+import { ImageUploader, DocumentDropzone } from "@/components/UploadButton";
+
+export default function UploadPage() {
+  return (
+    <div className="max-w-2xl mx-auto p-8">
+      <h1 className="text-3xl font-bold mb-8">Upload Files</h1>
+      
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Upload Images</h2>
+          <ImageUploader />
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Upload Documents</h2>
+          <DocumentDropzone />
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+## 🎉 You're Done!
+
+That's it! You now have:
+
+- ✅ **Type-safe file uploads** with automatic validation
+- ✅ **Real-time progress tracking** via WebSockets  
+- ✅ **Automatic image transformations** (thumbnail, medium, large)
+- ✅ **Error handling** and retry logic
+- ✅ **Drag & drop interface** with visual feedback
+- ✅ **Multi-file support** with progress for each file
+
+## Advanced Features
+
+Now that you have the basics working, explore these powerful features:
+
+### 📋 **Clipboard Upload Support**
+
+Enable paste-to-upload functionality:
+
+```tsx
+<CarcosaUploader
+  endpoint="imageUploader"
+  enableClipboard={true} // ✨ New feature
+  onClipboardUpload={(files) => {
+    console.log("📋 Pasted files:", files);
+  }}
+/>
+```
+
+### 🌊 **Streaming Upload for Large Files**
+
+Handle large files with chunked streaming:
+
+```tsx
+import { useStreamingUpload } from "@carcosa/nextjs";
+
+function LargeFileUploader() {
+  const { uploadFile, progress, isUploading } = useStreamingUpload({
+    endpoint: "documentUploader",
+    chunkSize: 5 * 1024 * 1024, // 5MB chunks
+  });
+
+  return (
+    <div>
+      <input 
+        type="file" 
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) uploadFile(file);
+        }}
+      />
+      {isUploading && (
+        <div>Progress: {progress.toFixed(1)}%</div>
+      )}
+    </div>
+  );
+}
+```
+
+### 🔄 **Real-time Progress Hook**
+
+Get granular control over upload progress:
+
+```tsx
+import { useUploadProgress } from "@carcosa/nextjs";
+
+function CustomUploader() {
+  const { 
+    progress, 
+    isUploading, 
+    uploadedFiles,
+    upload,
+    pause,
+    resume 
+  } = useUploadProgress("imageUploader");
+
+  return (
+    <div>
+      <input 
+        type="file" 
+        multiple
+        onChange={(e) => upload(Array.from(e.target.files || []))}
+      />
+      
+      {isUploading && (
+        <div className="space-y-2">
+          <div>Overall Progress: {progress}%</div>
+          <button onClick={pause}>⏸️ Pause</button>
+          <button onClick={resume}>▶️ Resume</button>
+        </div>
+      )}
+      
+      {uploadedFiles.map((file) => (
+        <div key={file.id}>
+          ✅ {file.name} - {file.url}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## What's Next?
+
+- **[Components Guide](/nextjs/components)** - Explore all available components
+- **[Hooks Reference](/nextjs/hooks)** - Master the upload hooks  
+- **[File Router](/file-router/overview)** - Advanced router configuration
+- **[API Reference](/api-reference/overview)** - Complete API documentation
+
+## Need Help?
+
+- 📚 **[Browse Examples](/examples/basic-upload)** - See complete working examples
+- 🔧 **[Configuration Guide](/configuration)** - Detailed setup options
+- 🚀 **[Deployment Guide](/deployment/vercel)** - Deploy to production
+
+<div className="feature-card">
+  <h3>🎯 **Coming from UploadThing?**</h3>
+  
+  Carcosa is designed to be a drop-in replacement with superior features:
+  
+  - **[Migration Guide](/migration/from-uploadthing)** - Migrate in minutes
+  - **[API Compatibility](/migration/from-uploadthing#api)** - Same API, better features
+  - **[What You Gain](/migration/from-uploadthing#benefits)** - See the improvements
+</div>

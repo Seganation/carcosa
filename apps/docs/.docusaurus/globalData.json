@@ -1,0 +1,78 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/",
+          "mainDocId": "index",
+          "docs": [
+            {
+              "id": "authentication",
+              "path": "/authentication",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "configuration",
+              "path": "/configuration",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "examples/basic-upload",
+              "path": "/examples/basic-upload",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "file-router/overview",
+              "path": "/file-router/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "index",
+              "path": "/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "installation",
+              "path": "/installation",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "migration/from-uploadthing",
+              "path": "/migration/from-uploadthing",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "nextjs/components",
+              "path": "/nextjs/components",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "nextjs/setup",
+              "path": "/nextjs/setup",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "quick-start",
+              "path": "/quick-start",
+              "sidebar": "tutorialSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "tutorialSidebar": {
+              "link": {
+                "path": "/",
+                "label": "index"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

@@ -1,0 +1,142 @@
+---
+alwaysApply: true
+
+
+
+
+# Carcosa Project Hierarchy & Ownership Model
+
+## 🏗️ Core Architecture Principles
+
+Carcosa follows a **3-tier ownership model**: Organization → Team → Project, similar to GitHub, Vercel, and other modern SaaS platforms.
+
+## 🧩 Ownership Breakdown
+
+### 🌐 Organization Level (Infra & Governance)
+- **Buckets** → Costly infrastructure, credentials, billing responsibility
+- **Audit Logs** → Compliance and governance across the organization  
+- **Usage Analytics** → Billing and analytics are organization-wide
+- **Organization Settings** → Billing plans, API limits, branding, security policies
+
+### 👥 Team Level (Collaboration & Apps)
+- **Apps/Projects** → Teams are where people collaborate, each app belongs to a team
+- **Tenants** → Multi-tenant sub-clients of a project (scoped to specific apps)
+- **Transforms** → Image/file processing workflows (part of app functionality)
+- **Team Settings** → Team-specific configurations, member management
+
+### 👤 User Level (Personal)
+- **Account Profile** → Password, 2FA, notifications, personal preferences
+- **Memberships** → User's roles across organizations and teams
+
+## 🧭 Navigation Hierarchy
+
+### Top Level (Organization Context)
+```
+[Org Switcher: ACME Corp] [User Avatar]
+
+Overview
+├── Teams
+│   ├── Backend Team
+│   ├── Frontend Team  
+│   └── Marketing Team
+├── Buckets
+├── Usage
+├── Audit Logs
+└── Settings
+```
+
+### Team Level (Team Context)
+```
+[Team: Backend Team]
+
+Apps/Projects
+├── Tenants
+├── Transforms  
+├── Files
+└── Settings
+```
+
+### Project/App Level (Project Context)
+```
+[App: E-commerce API]
+
+Back to Apps
+├── Overview
+├── Files
+├── Tenants
+├── API Keys
+├── Transforms
+├── Usage (scoped to project)
+├── Audit Logs (scoped to project)
+└── Settings
+```
+
+## 🔄 Bucket Sharing Model
+
+### Ownership vs Access
+- **Ownership**: Organization owns all buckets (billing, credentials, governance)
+- **Access**: Teams get granted access via `BucketTeamAccess` model
+- **Usage**: Projects must use buckets their team has access to
+
+### Access Levels
+- **READ_ONLY**: Project can fetch files, no uploads
+- **READ_WRITE**: Full file lifecycle (upload, delete, transform)  
+- **ADMIN**: Can manage bucket sharing (invite/remove teams)
+
+### Workflow
+1. **Org Admin** creates bucket with provider credentials
+2. **Org Admin** grants team access with specific permission levels
+3. **Team Members** create projects using accessible buckets
+4. **System** enforces access control and audit logging
+
+## 📁 File Path Isolation
+
+When teams share buckets, files are isolated using structured paths:
+```
+/{organizationSlug}/{teamSlug}/{projectSlug}/{filename}
+```
+
+Examples:
+- `acme-corp/backend-team/ecommerce-api/user-avatar.jpg`
+- `acme-corp/marketing-team/landing-page/hero-image.png`
+
+## 🔑 Key Implementation Details
+
+### Database Models
+- `Organization` → Top-level entity
+- `Team` → Belongs to organization, has members
+- `Bucket` → Owned by organization, shared with teams via `BucketTeamAccess`
+- `Project` → Belongs to team, uses accessible buckets
+- `BucketTeamAccess` → Many-to-many relationship with access levels
+
+### API Patterns
+- Organization-scoped: `/api/v1/organizations/{orgId}/buckets`
+- Team-scoped: `/api/v1/teams/{teamId}/projects`
+- Project-scoped: `/api/v1/projects/{projectId}/files`
+
+### Access Control
+- All API endpoints verify user membership in relevant org/team
+- Bucket operations check `BucketTeamAccess` permissions
+- File operations include org/team/project path prefixes
+
+## 🎯 Benefits
+
+1. **Clear Separation**: Infrastructure (buckets) vs. applications (projects)
+2. **Flexible Sharing**: Buckets can be shared across teams with granular permissions
+3. **Proper Isolation**: File paths prevent team data conflicts
+4. **Audit Trail**: All access and operations are logged with proper context
+5. **Scalable**: Supports single-team orgs and large multi-team enterprises
+6. **Industry Standard**: Follows patterns users expect from GitHub, Vercel, etc.
+
+## 🚦 UI/UX Principles
+
+- **Context Switching**: Clear org/team switchers in header
+- **Breadcrumbs**: Show hierarchy path (Org > Team > Project > Page)
+- **Scoped Navigation**: Menu items change based on current context
+- **Access Indicators**: Show user's role and permissions clearly
+- **Progressive Disclosure**: Hide complexity until needed
+
+This hierarchy ensures users always understand "where they are" and "what they can do" in the system.
+
+
+---

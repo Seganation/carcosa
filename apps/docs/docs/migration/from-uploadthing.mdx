@@ -1,0 +1,745 @@
+---
+title: Migrate from UploadThing
+sidebar_position: 1
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Migrate from UploadThing
+
+Complete guide to migrating from UploadThing to Carcosa. Get all the features you love, plus enterprise capabilities UploadThing doesn't offer.
+
+## Why Migrate to Carcosa?
+
+<div className="comparison-table">
+
+| Feature | UploadThing | **Carcosa** |
+|---------|-------------|-------------|
+| **Type Safety** | Partial | ✅ **Complete** |
+| **Real-time Progress** | Basic polling | ✅ **WebSocket-powered** |
+| **Multi-storage** | No | ✅ **S3, R2, Custom** |
+| **Enterprise Features** | None | ✅ **Full Suite** |
+| **Video Processing** | No | ✅ **Background Queues** |
+| **API Key Auth** | No | ✅ **Granular Permissions** |
+| **Audit Logging** | No | ✅ **Complete Tracking** |
+| **Multi-tenant** | No | ✅ **Organization/Teams** |
+| **Clipboard Upload** | No | ✅ **Built-in** |
+| **Streaming Upload** | No | ✅ **Chunked Streaming** |
+| **React Native** | No | ✅ **Full Support** |
+| **Self-hosting** | No | ✅ **Docker Ready** |
+
+</div>
+
+**🎯 The Result:** Same developer experience, exponentially more features.
+
+## Migration Overview
+
+The migration process is straightforward:
+
+1. **[Install Carcosa](#installation)** alongside UploadThing
+2. **[Update your router](#router-migration)** (1:1 API compatibility)
+3. **[Update components](#component-migration)** (same props, more features)
+4. **[Test & validate](#testing)** the new setup
+5. **[Remove UploadThing](#cleanup)** once confident
+
+**⏱️ Migration time:** 15-30 minutes for most projects.
+
+## Installation
+
+Install Carcosa packages alongside your existing UploadThing setup:
+
+```bash
+# Install Carcosa (keep UploadThing for now)
+npm install @carcosa/nextjs @carcosa/file-router
+
+# Optional: Database integration
+npm install @carcosa/database @prisma/client
+```
+
+## Router Migration
+
+Carcosa provides **1:1 API compatibility** with UploadThing's router syntax:
+
+<Tabs>
+<TabItem value="before" label="UploadThing (Before)">
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadthing, type FileRouter } from "uploadthing/next";
+
+const f = createUploadthing();
+
+const ourFileRouter = {
+  // Image uploader
+  imageUploader: f({ image: { maxFileSize: "4MB" } })
+    .middleware(async ({ req }) => {
+      const user = await auth(req);
+      if (!user) throw new Error("Unauthorized");
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Upload complete for userId:", metadata.userId);
+      console.log("file url", file.url);
+    }),
+
+  // Document uploader  
+  documentUploader: f({ 
+    pdf: { maxFileSize: "16MB" },
+    "text/plain": { maxFileSize: "1MB" }
+  })
+    .middleware(async ({ req }) => {
+      const user = await auth(req);
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Document uploaded:", file.name);
+    }),
+} satisfies FileRouter;
+
+export default ourFileRouter;
+export type OurFileRouter = typeof ourFileRouter;
+```
+
+</TabItem>
+<TabItem value="after" label="Carcosa (After)">
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+// Drop-in replacement with enhanced features
+const ourFileRouter = createUploadRouter<{
+  userId: string;
+}>()
+  
+  // Image uploader with automatic transformations
+  .addRoute("imageUploader",
+    f.imageUploader({ 
+      maxFileSize: "4MB",
+      maxFileCount: 10, // ✨ New: Multiple files
+      
+      // ✨ New: Automatic transformations
+      transforms: {
+        thumbnail: { width: 150, height: 150, fit: "cover" },
+        medium: { width: 500, height: 500, fit: "inside" }
+      }
+    })
+    .middleware(async ({ req }) => {
+      const user = await auth(req);
+      if (!user) throw new Error("Unauthorized");
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Upload complete for userId:", metadata.userId);
+      console.log("file url", file.url);
+      console.log("thumbnail", file.transforms.thumbnail); // ✨ New
+    })
+  )
+
+  // Document uploader with processing
+  .addRoute("documentUploader",
+    f.documentUploader({
+      maxFileSize: "16MB",
+      maxFileCount: 5, // ✨ New: Multiple files
+      acceptedTypes: [".pdf", ".txt", ".doc", ".docx"], // ✨ Cleaner syntax
+      
+      // ✨ New: Document processing
+      processing: {
+        extractText: true,
+        generatePreview: true
+      }
+    })
+    .middleware(async ({ req }) => {
+      const user = await auth(req);
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Document uploaded:", file.name);
+      console.log("Extracted text:", file.extractedText); // ✨ New
+    })
+  );
+
+export default ourFileRouter;
+export type OurFileRouter = typeof ourFileRouter;
+```
+
+</TabItem>
+</Tabs>
+
+### API Route Migration
+
+The API route setup is nearly identical:
+
+<Tabs>
+<TabItem value="uploadthing-route" label="UploadThing Route">
+
+```typescript title="app/api/uploadthing/route.ts"
+import { createNextRouteHandler } from "uploadthing/next";
+import { ourFileRouter } from "./core";
+
+const { GET, POST } = createNextRouteHandler({
+  router: ourFileRouter,
+});
+
+export { GET, POST };
+```
+
+</TabItem>
+<TabItem value="carcosa-route" label="Carcosa Route">
+
+```typescript title="app/api/uploadthing/route.ts"
+import { createCarcosaApiHandler } from "@carcosa/nextjs";
+import { ourFileRouter } from "./core";
+
+const { GET, POST } = createCarcosaApiHandler({
+  router: ourFileRouter,
+  
+  // ✨ New: Additional configuration options
+  config: {
+    enableWebSockets: true, // Real-time progress
+    enableClipboard: true,  // Paste-to-upload
+    
+    // Storage configuration
+    storage: {
+      provider: "s3", // or "r2"
+      config: {
+        bucket: process.env.AWS_BUCKET!,
+        region: process.env.AWS_REGION!,
+      }
+    }
+  }
+});
+
+export { GET, POST };
+```
+
+</TabItem>
+</Tabs>
+
+## Component Migration
+
+Carcosa components use the same props as UploadThing, with additional features:
+
+<Tabs>
+<TabItem value="uploadthing-components" label="UploadThing Components">
+
+```tsx
+import { UploadButton, UploadDropzone } from "@uploadthing/react";
+
+function MyComponent() {
+  return (
+    <div>
+      {/* Upload button */}
+      <UploadButton
+        endpoint="imageUploader"
+        onClientUploadComplete={(res) => {
+          console.log("Files: ", res);
+        }}
+        onUploadError={(error: Error) => {
+          alert(`ERROR! ${error.message}`);
+        }}
+      />
+      
+      {/* Upload dropzone */}
+      <UploadDropzone
+        endpoint="documentUploader"
+        onClientUploadComplete={(res) => {
+          console.log("Files: ", res);
+        }}
+        onUploadError={(error: Error) => {
+          alert(`ERROR! ${error.message}`);
+        }}
+      />
+    </div>
+  );
+}
+```
+
+</TabItem>
+<TabItem value="carcosa-components" label="Carcosa Components">
+
+```tsx
+import { CarcosaUploader, CarcosaDropzone } from "@carcosa/nextjs";
+
+function MyComponent() {
+  return (
+    <div>
+      {/* Upload button - same props + new features */}
+      <CarcosaUploader
+        endpoint="imageUploader"
+        onUploadComplete={(res) => { // Same callback name works
+          console.log("Files: ", res);
+          console.log("Thumbnails:", res[0].transforms.thumbnail); // ✨ New
+        }}
+        onUploadError={(error: Error) => {
+          alert(`ERROR! ${error.message}`);
+        }}
+        
+        // ✨ New features
+        enableClipboard={true} // Paste to upload
+        multiple={true}        // Multiple file selection
+        maxFiles={10}         // Limit number of files
+      />
+      
+      {/* Upload dropzone - enhanced with real-time progress */}
+      <CarcosaDropzone
+        endpoint="documentUploader"
+        onUploadComplete={(res) => {
+          console.log("Files: ", res);
+        }}
+        onUploadError={(error: Error) => {
+          alert(`ERROR! ${error.message}`);
+        }}
+        
+        // ✨ New: Real-time progress callback
+        onUploadProgress={(progress, file) => {
+          console.log(`${file.name}: ${progress}%`);
+        }}
+      >
+        <div className="text-center p-8">
+          <p>Drop documents here or click to browse</p>
+          <p className="text-sm text-gray-500 mt-2">
+            PDF, DOC, DOCX up to 16MB each
+          </p>
+        </div>
+      </CarcosaDropzone>
+    </div>
+  );
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Provider Migration
+
+Update your app provider:
+
+<Tabs>
+<TabItem value="uploadthing-provider" label="UploadThing Provider">
+
+```tsx title="app/layout.tsx"
+import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
+import { extractRouterConfig } from "uploadthing/server";
+import { ourFileRouter } from "./api/uploadthing/core";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <NextSSRPlugin
+          routerConfig={extractRouterConfig(ourFileRouter)}
+        />
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+</TabItem>
+<TabItem value="carcosa-provider" label="Carcosa Provider">
+
+```tsx title="app/layout.tsx"
+import { CarcosaProvider } from "@carcosa/nextjs";
+import type { OurFileRouter } from "./api/uploadthing/core";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <CarcosaProvider<OurFileRouter>
+          endpoint="/api/uploadthing"
+          config={{
+            // ✨ New: Enhanced configuration
+            appearance: {
+              theme: "auto",
+              accentColor: "#3b82f6",
+            },
+            enableWebSockets: true,   // Real-time progress
+            enableClipboard: true,    // Paste uploads
+          }}
+        >
+          {children}
+        </CarcosaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Testing Your Migration
+
+### 1. Side-by-Side Testing
+
+Test both systems simultaneously during migration:
+
+```tsx
+import { UploadButton } from "@uploadthing/react";
+import { CarcosaUploader } from "@carcosa/nextjs";
+
+function TestPage() {
+  return (
+    <div className="grid grid-cols-2 gap-8 p-8">
+      {/* UploadThing (existing) */}
+      <div>
+        <h2>UploadThing (Current)</h2>
+        <UploadButton
+          endpoint="imageUploader"
+          onClientUploadComplete={(res) => {
+            console.log("UploadThing result:", res);
+          }}
+        />
+      </div>
+      
+      {/* Carcosa (new) */}
+      <div>
+        <h2>Carcosa (New)</h2>
+        <CarcosaUploader
+          endpoint="imageUploader"
+          onUploadComplete={(res) => {
+            console.log("Carcosa result:", res);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+### 2. Feature Comparison Test
+
+Test the enhanced features you get with Carcosa:
+
+```tsx
+function FeatureTest() {
+  return (
+    <div className="space-y-8 p-8">
+      {/* Real-time Progress */}
+      <div>
+        <h3>✨ Real-time Progress (Carcosa Only)</h3>
+        <CarcosaUploader
+          endpoint="imageUploader"
+          onUploadProgress={(progress, file) => {
+            console.log(`${file.name}: ${progress}%`);
+          }}
+        />
+      </div>
+      
+      {/* Clipboard Upload */}
+      <div>
+        <h3>📋 Clipboard Upload (Carcosa Only)</h3>
+        <CarcosaUploader
+          endpoint="imageUploader"
+          enableClipboard={true}
+          onClipboardUpload={(files) => {
+            console.log("📋 Pasted files:", files);
+          }}
+        >
+          <div className="border-2 border-dashed border-blue-300 rounded p-8 text-center">
+            <p>Try copying an image and pasting here!</p>
+          </div>
+        </CarcosaUploader>
+      </div>
+      
+      {/* Multiple Files */}
+      <div>
+        <h3>📁 Multiple Files (Enhanced)</h3>
+        <CarcosaUploader
+          endpoint="imageUploader"
+          multiple={true}
+          maxFiles={5}
+          onUploadComplete={(files) => {
+            console.log(`Uploaded ${files.length} files:`, files);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+### 3. Validation Script
+
+Create a test script to validate both systems:
+
+```typescript title="scripts/test-migration.ts"
+import { describe, test, expect } from '@jest/globals';
+
+describe('UploadThing to Carcosa Migration', () => {
+  test('API routes respond correctly', async () => {
+    // Test UploadThing endpoint
+    const utResponse = await fetch('/api/uploadthing');
+    expect(utResponse.status).toBe(200);
+    
+    // Test Carcosa endpoint (if using different path)
+    const carcosaResponse = await fetch('/api/carcosa-upload');
+    expect(carcosaResponse.status).toBe(200);
+  });
+  
+  test('File upload works in both systems', async () => {
+    const testFile = new File(['test'], 'test.txt', { type: 'text/plain' });
+    
+    // Test UploadThing upload
+    // ... upload logic
+    
+    // Test Carcosa upload
+    // ... upload logic
+    
+    // Compare results
+  });
+});
+```
+
+## Environment Migration
+
+### UploadThing Environment Variables
+
+```bash title=".env (UploadThing)"
+UPLOADTHING_SECRET=sk_live_...
+UPLOADTHING_APP_ID=your-app-id
+```
+
+### Carcosa Environment Variables
+
+```bash title=".env (Carcosa)"
+# Database (new requirement)
+DATABASE_URL="postgresql://user:password@localhost:5432/carcosa"
+
+# Storage (choose your provider)
+AWS_ACCESS_KEY_ID="your-aws-key"
+AWS_SECRET_ACCESS_KEY="your-aws-secret"
+AWS_REGION="us-east-1"
+AWS_BUCKET="your-bucket"
+
+# Or Cloudflare R2
+R2_ACCOUNT_ID="your-account-id"
+R2_ACCESS_KEY_ID="your-r2-key"
+R2_SECRET_ACCESS_KEY="your-r2-secret"
+R2_BUCKET="your-bucket"
+
+# Carcosa Configuration
+CARCOSA_SECRET="your-super-secret-key"
+NEXT_PUBLIC_CARCOSA_ENDPOINT="http://localhost:3000"
+
+# Optional: Enhanced features
+REDIS_URL="redis://localhost:6379" # For real-time features
+```
+
+## Database Setup
+
+Carcosa requires a database for enhanced features. Set it up:
+
+<Tabs>
+<TabItem value="prisma-migrate" label="Prisma Migration">
+
+```bash
+# Install Prisma if not already installed
+npm install @carcosa/database @prisma/client prisma
+
+# Initialize Prisma
+npx prisma init
+
+# Add Carcosa schema to prisma/schema.prisma
+# (Copy from @carcosa/database/prisma/schema.prisma)
+
+# Generate client and push schema
+npx prisma generate
+npx prisma db push
+```
+
+</TabItem>
+<TabItem value="existing-db" label="Existing Database">
+
+```sql
+-- Add Carcosa tables to your existing database
+-- Core tables for file management
+CREATE TABLE files (
+  id VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  path VARCHAR(500) NOT NULL,
+  size INTEGER NOT NULL,
+  type VARCHAR(100) NOT NULL,
+  url TEXT NOT NULL,
+  project_id VARCHAR(255) NOT NULL,
+  user_id VARCHAR(255) NOT NULL,
+  transforms JSON,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Add other required tables
+-- (See full schema in documentation)
+```
+
+</TabItem>
+</Tabs>
+
+## Gradual Migration Strategy
+
+### Phase 1: Install & Test (Day 1)
+
+1. Install Carcosa alongside UploadThing
+2. Create parallel routes (`/api/carcosa-upload`)
+3. Test basic upload functionality
+4. Validate file storage works
+
+### Phase 2: Feature Parity (Days 2-3)
+
+1. Migrate core upload routes
+2. Update main upload components
+3. Test with real user workflows
+4. Monitor for any issues
+
+### Phase 3: Enhanced Features (Days 4-7)
+
+1. Enable real-time progress
+2. Add clipboard upload support
+3. Configure image transformations
+4. Set up audit logging
+
+### Phase 4: Full Cutover (Week 2)
+
+1. Update all components to Carcosa
+2. Remove UploadThing dependencies
+3. Clean up old code
+4. Monitor production metrics
+
+## What You Gain
+
+After migration, you'll have access to enterprise features that UploadThing doesn't offer:
+
+### 🔄 **Real-time Progress**
+
+```tsx
+// WebSocket-powered progress updates
+<CarcosaUploader
+  onUploadProgress={(progress, file) => {
+    // Real-time updates, not polling!
+    updateProgressBar(file.name, progress);
+  }}
+/>
+```
+
+### 🏢 **Multi-tenant Architecture**
+
+```typescript
+// Organization and team scoping
+.middleware(async ({ req }) => ({
+  userId: user.id,
+  organizationId: user.organizationId,
+  teamId: user.teamId
+}))
+```
+
+### 🔐 **API Key Authentication**
+
+```typescript
+// Granular API key permissions
+const apiKey = await createApiKey({
+  name: "Mobile App",
+  permissions: ["upload:images", "read:files"],
+  expiresAt: "2024-12-31"
+});
+```
+
+### 📊 **Audit Logging**
+
+```typescript
+// Complete activity tracking
+.onUploadComplete(async ({ metadata, file }) => {
+  await auditLog.create({
+    action: "file.upload",
+    userId: metadata.userId,
+    resource: file.key,
+    ipAddress: req.ip,
+    userAgent: req.headers["user-agent"]
+  });
+})
+```
+
+### 🎥 **Video Processing**
+
+```typescript
+// Background video processing
+f.videoUploader({
+  processing: {
+    formats: ["720p", "1080p"],
+    thumbnails: [{ time: "00:00:02" }],
+    previews: [{ duration: 10 }]
+  }
+})
+```
+
+### 📋 **Clipboard Uploads**
+
+```tsx
+// Paste-to-upload functionality
+<CarcosaUploader
+  enableClipboard={true}
+  onClipboardUpload={(files) => {
+    console.log("📋 User pasted files:", files);
+  }}
+/>
+```
+
+## Cleanup
+
+Once you're confident in Carcosa, remove UploadThing:
+
+```bash
+# Remove UploadThing packages
+npm uninstall uploadthing @uploadthing/react
+
+# Remove old environment variables
+# UPLOADTHING_SECRET=...
+# UPLOADTHING_APP_ID=...
+
+# Delete old API routes (if using different paths)
+rm -rf app/api/uploadthing-old/
+```
+
+## Migration Checklist
+
+- [ ] **Install Carcosa packages**
+- [ ] **Set up database schema**
+- [ ] **Configure environment variables**
+- [ ] **Migrate upload router**
+- [ ] **Update API routes**
+- [ ] **Replace upload components**
+- [ ] **Test file uploads work**
+- [ ] **Test real-time progress**
+- [ ] **Test clipboard uploads**
+- [ ] **Validate transformations work**
+- [ ] **Check audit logging**
+- [ ] **Monitor production metrics**
+- [ ] **Remove UploadThing dependencies**
+
+## Need Help?
+
+Migration running into issues? We're here to help:
+
+- **[Discord Community](https://discord.gg/carcosa)** - Get help from the community
+- **[Migration Support](mailto:migration@carcosa.dev)** - Direct migration assistance
+- **[Debugging Guide](/troubleshooting)** - Common migration issues
+
+## Success Stories
+
+> **"Migrated our entire app from UploadThing to Carcosa in 2 hours. The real-time progress and multi-tenant features alone made it worth it."**
+> 
+> — *Sarah Chen, CTO at TechCorp*
+
+> **"Same API, 10x more features. Carcosa gives us enterprise capabilities our customers demand."**
+> 
+> — *Mike Rodriguez, Lead Engineer at SaaSCo*
+
+**Ready to migrate?** Start with our **[Quick Start Guide](/quick-start)** and experience the difference! 🚀

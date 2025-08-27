@@ -1,0 +1,613 @@
+// Carcosa Database Schema - The Brain Behind The Beast! 🗄️🚀
+// This is what makes us BETTER than UploadThing!
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User management and authentication
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String?
+  avatar            String?
+  tier              UserTier @default(FREE)
+  status            UserStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  organizations     OrganizationMember[]
+  projects         ProjectMember[]
+  uploads          FileUpload[]
+  uploadSessions   UploadSession[]
+  apiKeys          ApiKey[]
+  auditLogs        AuditLog[]
+  quotas           UserQuota[]
+  billing          BillingRecord[]
+
+  // Metadata
+  totalUploads     Int      @default(0)
+  totalBytes       BigInt   @default(0)
+  lastUploadAt     DateTime?
+
+  @@map("users")
+}
+
+// Organization management
+model Organization {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String?
+  logo              String?
+  status            OrganizationStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  members           OrganizationMember[]
+  projects         Project[]
+  buckets          StorageBucket[]
+  quotas           OrganizationQuota[]
+  billing          BillingRecord[]
+
+  // Metadata
+  totalMembers     Int      @default(0)
+  totalProjects    Int      @default(0)
+  totalStorage     BigInt   @default(0)
+
+  @@map("organizations")
+}
+
+// Organization membership
+model OrganizationMember {
+  id                String   @id @default(cuid())
+  organizationId    String
+  userId            String
+  role              OrganizationRole @default(MEMBER)
+  status            MemberStatus @default(ACTIVE)
+  joinedAt          DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("organization_members")
+}
+
+// Project management
+model Project {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String
+  description       String?
+  organizationId    String
+  status            ProjectStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members           ProjectMember[]
+  buckets          StorageBucket[]
+  uploads          FileUpload[]
+  uploadSessions   UploadSession[]
+  quotas           ProjectQuota[]
+
+  // Metadata
+  totalMembers     Int      @default(0)
+  totalUploads     Int      @default(0)
+  totalStorage     BigInt   @default(0)
+
+  @@unique([organizationId, slug])
+  @@map("projects")
+}
+
+// Project membership
+model ProjectMember {
+  id                String   @id @default(cuid())
+  projectId         String
+  userId            String
+  role              ProjectRole @default(MEMBER)
+  status            MemberStatus @default(ACTIVE)
+  joinedAt          DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+// Storage bucket configuration
+model StorageBucket {
+  id                String   @id @default(cuid())
+  name              String
+  provider          StorageProvider
+  bucketName        String
+  region            String?
+  endpoint          String?
+  credentials       Json     // Encrypted credentials
+  organizationId    String
+  projectId         String?
+  status            BucketStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project           Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  files             FileUpload[]
+
+  // Configuration
+  isPublic          Boolean  @default(false)
+  maxFileSize       BigInt?
+  allowedTypes      String[] // MIME types
+  retentionPolicy   RetentionPolicy?
+
+  @@map("storage_buckets")
+}
+
+// File upload records
+model FileUpload {
+  id                String   @id @default(cuid())
+  key               String   // Storage key
+  fileName          String
+  originalName      String
+  fileSize          BigInt
+  mimeType          String
+  hash              String?  // File hash for deduplication
+  storageProvider   StorageProvider
+  bucketId          String
+  organizationId    String
+  projectId         String
+  userId            String
+  status            FileStatus @default(UPLOADING)
+  uploadedAt        DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  bucket            StorageBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uploadSession     UploadSession? @relation(fields: [uploadSessionId], references: [id])
+  transforms        FileTransform[]
+  shares            FileShare[]
+  auditLogs         AuditLog[]
+
+  // Metadata
+  uploadSessionId   String?
+  metadata          Json?    // Custom metadata
+  tags              String[]
+  isPublic          Boolean  @default(false)
+  expiresAt         DateTime?
+  downloadCount     Int      @default(0)
+  lastDownloadedAt  DateTime?
+
+  // URLs
+  publicUrl         String?
+  cdnUrl            String?
+  thumbnailUrl      String?
+
+  @@unique([key, bucketId])
+  @@index([organizationId, projectId])
+  @@index([userId, uploadedAt])
+  @@index([status, uploadedAt])
+  @@map("file_uploads")
+}
+
+// Upload session tracking
+model UploadSession {
+  id                String   @id @default(cuid())
+  sessionId         String   @unique // External session ID
+  organizationId    String
+  projectId         String
+  userId            String
+  status            UploadSessionStatus @default(ACTIVE)
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files             FileUpload[]
+
+  // Progress tracking
+  totalFiles        Int      @default(0)
+  completedFiles    Int      @default(0)
+  totalBytes        BigInt   @default(0)
+  uploadedBytes     BigInt   @default(0)
+  progress          Float    @default(0) // 0-100
+
+  // Metadata
+  routeName         String?
+  metadata          Json?
+  error             String?
+
+  @@index([organizationId, projectId])
+  @@index([userId, startedAt])
+  @@map("upload_sessions")
+}
+
+// File transformations
+model FileTransform {
+  id                String   @id @default(cuid())
+  fileId            String
+  transformType     TransformType
+  status            TransformStatus @default(PENDING)
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  file              FileUpload @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  // Configuration
+  config            Json     // Transform configuration
+  outputKey         String?  // Transformed file key
+  outputSize        BigInt?
+  outputMimeType    String?
+
+  // Results
+  result            Json?    // Transform results
+  error             String?
+  processingTime    Int?     // Milliseconds
+
+  @@index([fileId, transformType])
+  @@map("file_transforms")
+}
+
+// File sharing and permissions
+model FileShare {
+  id                String   @id @default(cuid())
+  fileId            String
+  sharedBy          String   // User ID
+  sharedWith        String?  // User ID (null for public)
+  permission        SharePermission @default(READ)
+  status            ShareStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  expiresAt         DateTime?
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  file              FileUpload @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  // Access tracking
+  accessCount       Int      @default(0)
+  lastAccessedAt    DateTime?
+
+  @@unique([fileId, sharedWith, permission])
+  @@map("file_shares")
+}
+
+// API key management
+model ApiKey {
+  id                String   @id @default(cuid())
+  name              String
+  key               String   @unique
+  userId            String
+  organizationId    String?
+  projectId         String?
+  permissions       ApiPermission[]
+  status            ApiKeyStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  lastUsedAt        DateTime?
+  expiresAt         DateTime?
+
+  // Relationships
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  project           Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  // Usage tracking
+  usageCount        Int      @default(0)
+  rateLimit         Int?     // Requests per minute
+
+  @@map("api_keys")
+}
+
+// Quota management
+model UserQuota {
+  id                String   @id @default(cuid())
+  userId            String
+  organizationId    String
+  type              QuotaType
+  limit             BigInt
+  used              BigInt   @default(0)
+  resetPeriod       QuotaResetPeriod @default(MONTHLY)
+  resetDate         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId, type])
+  @@map("user_quotas")
+}
+
+model OrganizationQuota {
+  id                String   @id @default(cuid())
+  organizationId    String
+  type              QuotaType
+  limit             BigInt
+  used              BigInt   @default(0)
+  resetPeriod       QuotaResetPeriod @default(MONTHLY)
+  resetDate         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, type])
+  @@map("organization_quotas")
+}
+
+model ProjectQuota {
+  id                String   @id @default(cuid())
+  projectId         String
+  type              QuotaType
+  limit             BigInt
+  used              BigInt   @default(0)
+  resetPeriod       QuotaResetPeriod @default(MONTHLY)
+  resetDate         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, type])
+  @@map("project_quotas")
+}
+
+// Billing and usage tracking
+model BillingRecord {
+  id                String   @id @default(cuid())
+  userId            String?
+  organizationId    String?
+  type              BillingType
+  amount            Decimal  @db.Decimal(10, 2)
+  currency          String   @default("USD")
+  description       String
+  period            BillingPeriod
+  startDate         DateTime
+  endDate           DateTime
+  status            BillingStatus @default(PENDING)
+  createdAt         DateTime @default(now())
+  paidAt            DateTime?
+
+  // Relationships
+  user              User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Metadata
+  metadata          Json?
+  invoiceId         String?
+
+  @@index([userId, period, startDate])
+  @@index([organizationId, period, startDate])
+  @@map("billing_records")
+}
+
+// Audit logging
+model AuditLog {
+  id                String   @id @default(cuid())
+  userId            String?
+  organizationId    String?
+  projectId         String?
+  action            AuditAction
+  resourceType      ResourceType
+  resourceId        String?
+  details           Json?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime @default(now())
+
+  // Relationships
+  user              User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+// Enums
+enum UserTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum MemberStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum StorageProvider {
+  S3
+  R2
+  GCS
+  AZURE
+  LOCAL
+}
+
+enum BucketStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+enum FileStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  ERROR
+  DELETED
+}
+
+enum UploadSessionStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TransformType {
+  RESIZE
+  CROP
+  FORMAT
+  COMPRESS
+  WATERMARK
+  THUMBNAIL
+  AI_ENHANCE
+}
+
+enum TransformStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum SharePermission {
+  READ
+  WRITE
+  ADMIN
+}
+
+enum ShareStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum ApiPermission {
+  UPLOAD
+  DOWNLOAD
+  DELETE
+  TRANSFORM
+  MANAGE
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum QuotaType {
+  STORAGE
+  UPLOADS
+  TRANSFORMS
+  API_REQUESTS
+  BANDWIDTH
+}
+
+enum QuotaResetPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  NEVER
+}
+
+enum BillingType {
+  SUBSCRIPTION
+  USAGE
+  OVERAGE
+  CREDIT
+}
+
+enum BillingPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum BillingStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  UPLOAD
+  DOWNLOAD
+  SHARE
+  TRANSFORM
+  LOGIN
+  LOGOUT
+}
+
+enum ResourceType {
+  USER
+  ORGANIZATION
+  PROJECT
+  FILE
+  BUCKET
+  API_KEY
+  QUOTA
+}
+
+enum RetentionPolicy {
+  DAYS_7
+  DAYS_30
+  DAYS_90
+  DAYS_365
+  FOREVER
+}

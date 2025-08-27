@@ -1,0 +1,30 @@
+{
+  "id": "examples/basic-upload",
+  "title": "Basic Upload Example",
+  "description": "Complete working example of a file upload system with Carcosa. Copy, paste, and customize for your needs.",
+  "source": "@site/docs/examples/basic-upload.mdx",
+  "sourceDirName": "examples",
+  "slug": "/examples/basic-upload",
+  "permalink": "/examples/basic-upload",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/carcosa/carcosa/tree/main/apps/docs/docs/examples/basic-upload.mdx",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "title": "Basic Upload Example",
+    "sidebar_position": 1
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "File Router Overview",
+    "permalink": "/file-router/overview"
+  },
+  "next": {
+    "title": "Migrate from UploadThing",
+    "permalink": "/migration/from-uploadthing"
+  }
+}

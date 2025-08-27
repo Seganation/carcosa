@@ -1,0 +1,30 @@
+{
+  "id": "file-router/overview",
+  "title": "File Router Overview",
+  "description": "The File Router is the heart of Carcosa - a type-safe, middleware-powered system for defining upload endpoints. Think of it as \"tRPC for file uploads\" with built-in validation, transformations, and real-time progress.",
+  "source": "@site/docs/file-router/overview.mdx",
+  "sourceDirName": "file-router",
+  "slug": "/file-router/overview",
+  "permalink": "/file-router/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/carcosa/carcosa/tree/main/apps/docs/docs/file-router/overview.mdx",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "title": "File Router Overview",
+    "sidebar_position": 1
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Components Reference",
+    "permalink": "/nextjs/components"
+  },
+  "next": {
+    "title": "Basic Upload Example",
+    "permalink": "/examples/basic-upload"
+  }
+}

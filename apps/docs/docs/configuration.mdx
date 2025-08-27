@@ -1,0 +1,805 @@
+---
+title: Configuration
+sidebar_position: 4
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Configuration
+
+Complete configuration guide for Carcosa. Customize every aspect of your file upload system.
+
+## Environment Variables
+
+### Required Variables
+
+```bash title=".env.local"
+# Database (required for metadata storage)
+DATABASE_URL="postgresql://user:password@localhost:5432/carcosa"
+
+# Storage Provider (choose one)
+# AWS S3
+AWS_ACCESS_KEY_ID="your-aws-access-key"
+AWS_SECRET_ACCESS_KEY="your-aws-secret-key"  
+AWS_REGION="us-east-1"
+AWS_BUCKET="your-bucket-name"
+
+# OR Cloudflare R2
+R2_ACCOUNT_ID="your-account-id"
+R2_ACCESS_KEY_ID="your-r2-access-key"
+R2_SECRET_ACCESS_KEY="your-r2-secret-key"
+R2_BUCKET="your-bucket-name"
+
+# Carcosa Core
+CARCOSA_SECRET="your-super-secret-key-change-this-in-production"
+NEXT_PUBLIC_CARCOSA_ENDPOINT="http://localhost:3000"
+```
+
+### Optional Variables
+
+```bash title=".env.local (optional)"
+# Redis (for caching and rate limiting)
+REDIS_URL="redis://localhost:6379"
+
+# WebSockets (for real-time progress)
+WEBSOCKET_PORT="3001"
+
+# Webhook configuration
+CARCOSA_WEBHOOK_SECRET="your-webhook-secret"
+WEBHOOK_URL="https://yourapp.com/api/webhooks/carcosa"
+
+# Image processing
+SHARP_CACHE_SIZE="50" # MB
+SHARP_CONCURRENCY="4" # Number of concurrent image operations
+
+# Video processing
+FFMPEG_PATH="/usr/local/bin/ffmpeg"
+VIDEO_PROCESSING_QUEUE="redis"
+
+# Monitoring
+SENTRY_DSN="https://your-sentry-dsn"
+LOG_LEVEL="info" # debug, info, warn, error
+```
+
+## Router Configuration
+
+### Basic Router
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+}>()
+  .addRoute("images", 
+    f.imageUploader({
+      maxFileSize: "10MB",
+      maxFileCount: 5,
+      acceptedTypes: ["image/jpeg", "image/png", "image/webp"]
+    })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      return { userId: user.id };
+    })
+  );
+
+export default fileRouter;
+```
+
+### Advanced Router Configuration
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+  organizationId: string;
+  tier: "free" | "pro" | "enterprise";
+}>({
+  // Global router configuration
+  config: {
+    // Default file size limits per tier
+    defaultMaxFileSize: (ctx) => {
+      switch (ctx.tier) {
+        case "free": return "5MB";
+        case "pro": return "50MB";
+        case "enterprise": return "500MB";
+      }
+    },
+    
+    // Global rate limiting
+    rateLimit: {
+      max: (ctx) => ctx.tier === "free" ? 10 : 100,
+      window: "1h",
+      keyGenerator: (ctx) => `${ctx.organizationId}:${ctx.tier}`
+    },
+    
+    // Global storage quota
+    storageQuota: {
+      check: async (ctx) => {
+        const usage = await getStorageUsage(ctx.organizationId);
+        const limit = await getStorageLimit(ctx.tier);
+        return usage < limit;
+      }
+    },
+    
+    // Global audit logging
+    auditLog: {
+      enabled: true,
+      includeFileMetadata: true,
+      includeiPAddress: true
+    }
+  }
+})
+  
+  // Routes inherit global config but can override
+  .addRoute("profilePictures",
+    f.imageUploader({
+      maxFileSize: "2MB", // Override global limit
+      transforms: {
+        avatar: { width: 128, height: 128, fit: "cover" }
+      }
+    })
+  );
+```
+
+## API Handler Configuration
+
+<Tabs>
+<TabItem value="basic" label="Basic Configuration">
+
+```typescript title="app/api/uploadthing/route.ts"
+import { createCarcosaApiHandler } from "@carcosa/nextjs";
+import fileRouter from "./core";
+
+const { GET, POST } = createCarcosaApiHandler({
+  router: fileRouter,
+});
+
+export { GET, POST };
+```
+
+</TabItem>
+<TabItem value="production" label="Production Configuration">
+
+```typescript title="app/api/uploadthing/route.ts"
+import { createCarcosaApiHandler } from "@carcosa/nextjs";
+import fileRouter from "./core";
+
+const { GET, POST } = createCarcosaApiHandler({
+  router: fileRouter,
+  config: {
+    // Storage configuration
+    storage: {
+      provider: "s3", // or "r2" or custom adapter
+      config: {
+        bucket: process.env.AWS_BUCKET!,
+        region: process.env.AWS_REGION!,
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        
+        // Advanced S3 options
+        endpoint: process.env.S3_ENDPOINT, // For S3-compatible services
+        forcePathStyle: false,
+        signatureVersion: "v4",
+        
+        // Multipart upload configuration
+        multipartUpload: {
+          partSize: 10 * 1024 * 1024, // 10MB parts
+          queueSize: 4, // Upload 4 parts concurrently
+        }
+      }
+    },
+    
+    // Real-time features
+    enableWebSockets: true,
+    webSocketConfig: {
+      port: parseInt(process.env.WEBSOCKET_PORT || "3001"),
+      cors: {
+        origin: process.env.NODE_ENV === "production"
+          ? ["https://yourdomain.com"]
+          : ["http://localhost:3000"],
+        credentials: true
+      }
+    },
+    
+    // CORS configuration
+    cors: {
+      origin: (origin) => {
+        // Custom origin validation
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+        return allowedOrigins.includes(origin) || !origin;
+      },
+      credentials: true,
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+    },
+    
+    // Rate limiting
+    rateLimit: {
+      max: 100,
+      windowMs: 60 * 60 * 1000, // 1 hour
+      keyGenerator: (req) => {
+        // Custom key generation
+        return req.headers.get("x-api-key") || 
+               req.headers.get("x-forwarded-for") || 
+               "default";
+      },
+      skip: (req) => {
+        // Skip rate limiting for admin API keys
+        const apiKey = req.headers.get("x-api-key");
+        return isAdminApiKey(apiKey);
+      }
+    },
+    
+    // Security headers
+    security: {
+      contentSecurityPolicy: {
+        directives: {
+          "default-src": ["'self'"],
+          "img-src": ["'self'", "data:", "https:"],
+          "script-src": ["'self'", "'unsafe-inline'"],
+        }
+      },
+      helmet: {
+        frameguard: { action: "deny" },
+        contentTypeNoSniff: true,
+        xssFilter: true
+      }
+    },
+    
+    // Webhook configuration
+    webhooks: {
+      secret: process.env.CARCOSA_WEBHOOK_SECRET!,
+      url: process.env.WEBHOOK_URL,
+      events: ["upload.complete", "upload.failed", "file.deleted"],
+      retries: 3,
+      timeout: 5000 // 5 seconds
+    },
+    
+    // Monitoring and logging
+    monitoring: {
+      sentry: {
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV,
+        tracesSampleRate: 0.1
+      },
+      metrics: {
+        enabled: true,
+        provider: "prometheus", // or "datadog"
+        endpoint: "/metrics"
+      },
+      logging: {
+        level: process.env.LOG_LEVEL || "info",
+        format: "json",
+        includeRequestId: true
+      }
+    }
+  }
+});
+
+export { GET, POST };
+```
+
+</TabItem>
+</Tabs>
+
+## Client Provider Configuration
+
+<Tabs>
+<TabItem value="basic-provider" label="Basic Provider">
+
+```tsx title="app/layout.tsx"
+import { CarcosaProvider } from "@carcosa/nextjs";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html>
+      <body>
+        <CarcosaProvider
+          endpoint="/api/uploadthing"
+        >
+          {children}
+        </CarcosaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+</TabItem>
+<TabItem value="advanced-provider" label="Advanced Provider">
+
+```tsx title="app/layout.tsx"
+import { CarcosaProvider } from "@carcosa/nextjs";
+import type { FileRouter } from "./api/uploadthing/core";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html>
+      <body>
+        <CarcosaProvider<FileRouter>
+          endpoint="/api/uploadthing"
+          config={{
+            // Appearance customization
+            appearance: {
+              theme: "auto", // "light" | "dark" | "auto"
+              accentColor: "#3b82f6",
+              borderRadius: "8px",
+              fontFamily: "Inter, -apple-system, sans-serif",
+              
+              // Custom CSS variables
+              variables: {
+                "--carcosa-primary": "#3b82f6",
+                "--carcosa-success": "#10b981",
+                "--carcosa-error": "#ef4444",
+                "--carcosa-warning": "#f59e0b",
+                "--carcosa-border": "#e5e7eb",
+                "--carcosa-background": "#ffffff",
+                "--carcosa-text": "#111827"
+              }
+            },
+            
+            // Real-time features
+            enableWebSockets: true,
+            webSocketConfig: {
+              reconnect: true,
+              reconnectAttempts: 5,
+              reconnectDelay: 1000,
+              heartbeat: 30000 // 30 seconds
+            },
+            
+            // Enhanced features
+            enableClipboard: true,
+            enableDragAndDrop: true,
+            enablePasteUpload: true,
+            
+            // File handling
+            chunkSize: 5 * 1024 * 1024, // 5MB chunks for large files
+            maxConcurrentUploads: 3,
+            retryFailedUploads: true,
+            retryAttempts: 3,
+            retryDelay: 1000,
+            
+            // Global event handlers
+            onUploadStart: (files) => {
+              console.log(`🚀 Upload started: ${files.length} files`);
+              // Show global loading indicator
+              showGlobalLoading();
+            },
+            
+            onUploadProgress: (progress, file) => {
+              console.log(`📊 ${file.name}: ${progress.toFixed(1)}%`);
+              // Update global progress
+              updateGlobalProgress(progress);
+            },
+            
+            onUploadComplete: (files) => {
+              console.log(`✅ Upload complete: ${files.length} files`);
+              // Hide global loading indicator
+              hideGlobalLoading();
+              
+              // Show success notification
+              showNotification("success", `Uploaded ${files.length} files`);
+            },
+            
+            onUploadError: (error, file) => {
+              console.error("❌ Upload error:", error, file);
+              // Hide global loading indicator
+              hideGlobalLoading();
+              
+              // Show error notification
+              showNotification("error", `Failed to upload ${file?.name || "file"}`);
+            },
+            
+            // Network configuration
+            network: {
+              timeout: 30000, // 30 second timeout
+              maxRetries: 3,
+              retryDelay: 1000,
+              
+              // Custom headers
+              headers: {
+                "X-Client-Version": "1.0.0",
+                "X-User-Agent": "Carcosa-Client"
+              }
+            }
+          }}
+        >
+          {children}
+        </CarcosaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Storage Provider Configuration
+
+### AWS S3 Configuration
+
+```typescript title="lib/storage/s3.ts"
+import { S3StorageAdapter } from "@carcosa/storage";
+
+export const s3Storage = new S3StorageAdapter({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  region: process.env.AWS_REGION!,
+  bucket: process.env.AWS_BUCKET!,
+  
+  // Advanced S3 options
+  endpoint: process.env.S3_ENDPOINT, // For S3-compatible services
+  forcePathStyle: false,
+  signatureVersion: "v4",
+  
+  // Upload configuration
+  multipartUpload: {
+    partSize: 10 * 1024 * 1024, // 10MB
+    queueSize: 4
+  },
+  
+  // CDN configuration
+  cdnUrl: process.env.CDN_URL, // e.g., CloudFront URL
+  
+  // File naming strategy
+  fileNaming: {
+    strategy: "uuid", // "uuid" | "timestamp" | "original" | "custom"
+    preserveExtension: true,
+    addTimestamp: true
+  },
+  
+  // Storage classes
+  storageClass: "STANDARD", // "STANDARD" | "REDUCED_REDUNDANCY" | "STANDARD_IA"
+  
+  // Lifecycle rules
+  lifecycle: {
+    transitionToIA: 30, // days
+    transitionToGlacier: 365, // days
+    expiration: null // never expire
+  }
+});
+```
+
+### Cloudflare R2 Configuration
+
+```typescript title="lib/storage/r2.ts"
+import { R2StorageAdapter } from "@carcosa/storage";
+
+export const r2Storage = new R2StorageAdapter({
+  accountId: process.env.R2_ACCOUNT_ID!,
+  accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  bucket: process.env.R2_BUCKET!,
+  
+  // R2-specific options
+  publicUrl: process.env.R2_PUBLIC_URL,
+  
+  // Custom domain
+  customDomain: process.env.R2_CUSTOM_DOMAIN,
+  
+  // Upload configuration
+  multipartUpload: {
+    partSize: 5 * 1024 * 1024, // 5MB (R2 minimum)
+    queueSize: 6
+  }
+});
+```
+
+## Database Configuration
+
+### Prisma Configuration
+
+```prisma title="prisma/schema.prisma"
+generator client {
+  provider = "prisma-client-js"
+  
+  // Performance optimizations
+  previewFeatures = ["clientExtensions", "postgresqlExtensions"]
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"] // For Docker
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  
+  // Connection pooling
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  
+  // PostgreSQL extensions
+  extensions = [uuid_ossp(map: "uuid-ossp")]
+}
+
+// Carcosa models with optimizations
+model File {
+  id          String   @id @default(cuid())
+  name        String
+  path        String
+  size        Int
+  type        String
+  url         String
+  version     String   @default("1")
+  projectId   String
+  tenantId    String?
+  transforms  Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Indexes for performance
+  @@index([projectId, createdAt])
+  @@index([tenantId, type])
+  @@index([path, version])
+  @@unique([projectId, path, version])
+  @@map("files")
+}
+```
+
+### Database Connection Pooling
+
+```typescript title="lib/db.ts"
+import { PrismaClient } from "@prisma/client";
+
+// Production connection pooling
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+  
+  // Connection pool configuration
+  __internal: {
+    engine: {
+      endpoint: process.env.DATABASE_URL,
+      
+      // Connection pool settings
+      connection_limit: 10,
+      pool_timeout: 10,
+      statement_cache_size: 500
+    }
+  },
+  
+  // Logging configuration
+  log: process.env.NODE_ENV === "development" 
+    ? ["query", "info", "warn", "error"]
+    : ["error"],
+    
+  // Error formatting
+  errorFormat: "pretty"
+});
+
+export { prisma };
+```
+
+## Performance Configuration
+
+### Caching Configuration
+
+```typescript title="lib/cache.ts"
+import Redis from "ioredis";
+
+// Redis cache configuration
+export const redis = new Redis({
+  host: process.env.REDIS_HOST || "localhost",
+  port: parseInt(process.env.REDIS_PORT || "6379"),
+  password: process.env.REDIS_PASSWORD,
+  
+  // Connection pool
+  maxRetriesPerRequest: 3,
+  retryDelayOnFailover: 100,
+  
+  // Performance options
+  lazyConnect: true,
+  keepAlive: 30000,
+  
+  // Key prefix
+  keyPrefix: "carcosa:",
+  
+  // Serialization
+  stringNumbers: true
+});
+
+// Cache configuration for file metadata
+export const cacheConfig = {
+  fileMetadata: {
+    ttl: 60 * 60, // 1 hour
+    maxSize: 1000 // Max cached items
+  },
+  
+  userQuotas: {
+    ttl: 5 * 60, // 5 minutes
+    maxSize: 500
+  },
+  
+  transformResults: {
+    ttl: 24 * 60 * 60, // 24 hours
+    maxSize: 2000
+  }
+};
+```
+
+### Image Processing Configuration
+
+```typescript title="lib/image-processing.ts"
+import sharp from "sharp";
+
+// Sharp configuration for image processing
+sharp.cache({
+  memory: parseInt(process.env.SHARP_CACHE_SIZE || "50") * 1024 * 1024, // 50MB
+  files: 20,
+  items: 100
+});
+
+sharp.concurrency(parseInt(process.env.SHARP_CONCURRENCY || "4"));
+
+// Image processing defaults
+export const imageConfig = {
+  quality: {
+    jpeg: 85,
+    webp: 80,
+    avif: 70,
+    png: 9 // compression level
+  },
+  
+  formats: {
+    autoWebP: true,
+    autoAVIF: false, // Enable for modern browsers only
+    preserveOriginal: true
+  },
+  
+  transforms: {
+    thumbnail: { width: 150, height: 150, fit: "cover" },
+    small: { width: 300, height: 300, fit: "inside" },
+    medium: { width: 600, height: 600, fit: "inside" },
+    large: { width: 1200, height: 1200, fit: "inside" },
+    xlarge: { width: 2400, height: 2400, fit: "inside" }
+  }
+};
+```
+
+## Security Configuration
+
+### API Key Configuration
+
+```typescript title="lib/auth/api-keys.ts"
+export const apiKeyConfig = {
+  // Key generation
+  keyLength: 32,
+  prefix: "csk_", // Carcosa Secret Key
+  
+  // Permissions
+  permissions: [
+    "upload:images",
+    "upload:documents", 
+    "upload:videos",
+    "read:files",
+    "delete:files",
+    "admin:all"
+  ],
+  
+  // Rate limiting per API key
+  rateLimit: {
+    free: { max: 100, window: "1h" },
+    pro: { max: 1000, window: "1h" },
+    enterprise: { max: 10000, window: "1h" }
+  },
+  
+  // Quota limits
+  quotas: {
+    free: { storage: "1GB", bandwidth: "10GB" },
+    pro: { storage: "100GB", bandwidth: "1TB" },
+    enterprise: { storage: "1TB", bandwidth: "10TB" }
+  }
+};
+```
+
+### CORS Configuration
+
+```typescript title="lib/cors.ts"
+export const corsConfig = {
+  // Production origins
+  production: [
+    "https://yourdomain.com",
+    "https://www.yourdomain.com",
+    "https://admin.yourdomain.com"
+  ],
+  
+  // Development origins
+  development: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000"
+  ],
+  
+  // Methods
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  
+  // Headers
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization", 
+    "X-Requested-With",
+    "X-API-Key",
+    "X-Project-ID"
+  ],
+  
+  // Credentials
+  credentials: true,
+  
+  // Preflight cache
+  maxAge: 86400 // 24 hours
+};
+```
+
+## Monitoring Configuration
+
+```typescript title="lib/monitoring.ts"
+import * as Sentry from "@sentry/nextjs";
+
+// Sentry configuration
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  
+  // Performance monitoring
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  
+  // Error filtering
+  beforeSend(event) {
+    // Filter out known non-critical errors
+    if (event.exception?.values?.[0]?.type === "NetworkError") {
+      return null;
+    }
+    return event;
+  },
+  
+  // Release tracking
+  release: process.env.VERCEL_GIT_COMMIT_SHA || "development"
+});
+
+// Metrics configuration
+export const metricsConfig = {
+  enabled: process.env.NODE_ENV === "production",
+  endpoint: "/api/metrics",
+  
+  // Custom metrics
+  counters: [
+    "uploads.started",
+    "uploads.completed", 
+    "uploads.failed",
+    "auth.attempts",
+    "auth.failures"
+  ],
+  
+  histograms: [
+    "upload.duration",
+    "upload.size",
+    "image.processing.duration",
+    "database.query.duration"
+  ],
+  
+  // Collection interval
+  interval: 10000 // 10 seconds
+};
+```
+
+## Next Steps
+
+With your configuration complete:
+
+- **[Quick Start](/quick-start)** - Test your setup
+- **[Next.js Setup](/nextjs/setup)** - Complete integration
+- **[Deployment](/deployment/vercel)** - Deploy to production
+- **[Monitoring](/monitoring)** - Set up observability

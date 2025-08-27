@@ -1,0 +1,104 @@
+{
+  "/__docusaurus/debug-5ff": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/config-5ba": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/content-a2b": {
+    "__comp": "__comp---theme-debug-contentba-8-ce7",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    },
+    "__props": "__props---docusaurus-debug-content-3-c-0-be2"
+  },
+  "/__docusaurus/debug/globalData-c3c": {
+    "__comp": "__comp---theme-debug-global-dataede-0fa",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/metadata-156": {
+    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/registry-88c": {
+    "__comp": "__comp---theme-debug-registry-679-501",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/routes-000": {
+    "__comp": "__comp---theme-debug-routes-946-699",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/search-5de": {
+    "__comp": "__comp---theme-search-page-1-a-4-d6f",
+    "__context": {
+      "plugin": "plugin---searchc-14-0ea"
+    }
+  },
+  "/-f78": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__context": {
+      "plugin": "plugin---aba-d70"
+    }
+  },
+  "/-fa7": {
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "__props": "__props---22-d-307"
+  },
+  "/-3ac": {
+    "__comp": "__comp---theme-doc-roota-94-67a"
+  },
+  "/authentication-153": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---authenticationcc-3-a93"
+  },
+  "/configuration-7ff": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---configurationcbb-1b7"
+  },
+  "/examples/basic-upload-a25": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---examples-basic-upload-1-e-3-e48"
+  },
+  "/file-router/overview-7eb": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---file-router-overviewdcc-76b"
+  },
+  "/installation-6ad": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---installationfa-4-9a3"
+  },
+  "/migration/from-uploadthing-633": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---migration-from-uploadthing-726-06a"
+  },
+  "/nextjs/components-b6d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---nextjs-components-36-e-0fc"
+  },
+  "/nextjs/setup-3f6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---nextjs-setup-4-b-7-42d"
+  },
+  "/quick-start-b77": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---quick-startc-17-374"
+  },
+  "/-2d7": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---4-ed-c51"
+  }
+}

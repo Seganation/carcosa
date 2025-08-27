@@ -1,0 +1,22 @@
+{
+  "name": "@carcosa/prisma-adapter",
+  "version": "0.1.0",
+  "description": "Prisma adapter for Carcosa tenant management",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "db:generate": "echo 'No database to generate'"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "peerDependencies": {
+    "@prisma/client": "^5.0.0"
+  }
+}

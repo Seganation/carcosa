@@ -1,0 +1,26 @@
+{
+  "id": "migration/from-uploadthing",
+  "title": "Migrate from UploadThing",
+  "description": "Complete guide to migrating from UploadThing to Carcosa. Get all the features you love, plus enterprise capabilities UploadThing doesn't offer.",
+  "source": "@site/docs/migration/from-uploadthing.mdx",
+  "sourceDirName": "migration",
+  "slug": "/migration/from-uploadthing",
+  "permalink": "/migration/from-uploadthing",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/carcosa/carcosa/tree/main/apps/docs/docs/migration/from-uploadthing.mdx",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "title": "Migrate from UploadThing",
+    "sidebar_position": 1
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Basic Upload Example",
+    "permalink": "/examples/basic-upload"
+  }
+}

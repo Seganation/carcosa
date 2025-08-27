@@ -1,0 +1,679 @@
+---
+title: Authentication
+sidebar_position: 5
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Authentication
+
+Secure your file uploads with Carcosa's flexible authentication system. Supports multiple auth providers and custom authentication logic.
+
+## Overview
+
+Carcosa authentication works through middleware in your upload router:
+
+```typescript
+const fileRouter = createUploadRouter<{
+  userId: string;
+  email: string;
+}>()
+  .addRoute("uploads",
+    f.fileUploader({ maxFileSize: "10MB" })
+    .middleware(async ({ req }) => {
+      // Your authentication logic here
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { 
+        userId: user.id,
+        email: user.email 
+      };
+    })
+  );
+```
+
+## Integration Examples
+
+### NextAuth.js
+
+<Tabs>
+<TabItem value="app-router" label="App Router">
+
+```typescript title="lib/auth.ts"
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+export async function getUser(req: Request) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return null;
+  }
+  
+  return {
+    id: session.user.id,
+    email: session.user.email!,
+    name: session.user.name,
+    organizationId: session.user.organizationId,
+  };
+}
+```
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+import { getUser } from "@/lib/auth";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+  email: string;
+  organizationId: string;
+}>()
+  .addRoute("images",
+    f.imageUploader({ maxFileSize: "10MB" })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return {
+        userId: user.id,
+        email: user.email,
+        organizationId: user.organizationId
+      };
+    })
+  );
+```
+
+</TabItem>
+<TabItem value="pages-router" label="Pages Router">
+
+```typescript title="lib/auth.ts"
+import { getSession } from "next-auth/react";
+
+export async function getUser(req: NextApiRequest) {
+  const session = await getSession({ req });
+  
+  if (!session?.user?.id) {
+    return null;
+  }
+  
+  return {
+    id: session.user.id,
+    email: session.user.email!,
+    name: session.user.name,
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Clerk
+
+```typescript title="lib/auth.ts"
+import { auth } from "@clerk/nextjs";
+
+export async function getUser(req: Request) {
+  const { userId, orgId } = auth();
+  
+  if (!userId) {
+    return null;
+  }
+  
+  // Get additional user data from Clerk
+  const user = await clerkClient.users.getUser(userId);
+  
+  return {
+    id: userId,
+    email: user.emailAddresses[0]?.emailAddress || "",
+    organizationId: orgId || "personal",
+  };
+}
+```
+
+### Supabase Auth
+
+```typescript title="lib/auth.ts"
+import { createServerClient } from "@supabase/ssr";
+
+export async function getUser(req: Request) {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.headers.get("cookie")
+            ?.split(";")
+            .find(c => c.trim().startsWith(`${name}=`))
+            ?.split("=")[1];
+        },
+      },
+    }
+  );
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return null;
+  }
+  
+  return {
+    id: user.id,
+    email: user.email!,
+    organizationId: user.user_metadata.organizationId,
+  };
+}
+```
+
+### Firebase Auth
+
+```typescript title="lib/auth.ts"
+import { auth } from "firebase-admin";
+import { initializeApp, getApps } from "firebase-admin/app";
+
+// Initialize Firebase Admin
+if (!getApps().length) {
+  initializeApp({
+    credential: auth.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+export async function getUser(req: Request) {
+  const authHeader = req.headers.get("authorization");
+  
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const decodedToken = await auth().verifyIdToken(token);
+    
+    return {
+      id: decodedToken.uid,
+      email: decodedToken.email!,
+      name: decodedToken.name,
+    };
+  } catch (error) {
+    return null;
+  }
+}
+```
+
+### Custom JWT
+
+```typescript title="lib/auth.ts"
+import jwt from "jsonwebtoken";
+
+export async function getUser(req: Request) {
+  const authHeader = req.headers.get("authorization");
+  
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as {
+      userId: string;
+      email: string;
+      organizationId: string;
+    };
+    
+    return {
+      id: payload.userId,
+      email: payload.email,
+      organizationId: payload.organizationId,
+    };
+  } catch (error) {
+    return null;
+  }
+}
+```
+
+## API Key Authentication
+
+For server-to-server or mobile app authentication:
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+const fileRouter = createUploadRouter<{
+  apiKeyId: string;
+  organizationId: string;
+  permissions: string[];
+}>()
+  .addRoute("serverUploads",
+    f.fileUploader({ maxFileSize: "100MB" })
+    .middleware(async ({ req }) => {
+      const apiKey = req.headers.get("x-api-key");
+      
+      if (!apiKey) {
+        throw new Error("API key required");
+      }
+      
+      // Validate API key
+      const keyData = await validateApiKey(apiKey);
+      if (!keyData) {
+        throw new Error("Invalid API key");
+      }
+      
+      // Check permissions
+      if (!keyData.permissions.includes("upload:files")) {
+        throw new Error("Insufficient permissions");
+      }
+      
+      return {
+        apiKeyId: keyData.id,
+        organizationId: keyData.organizationId,
+        permissions: keyData.permissions,
+      };
+    })
+  );
+
+async function validateApiKey(key: string) {
+  // Hash the key and look it up in database
+  const hashedKey = hashApiKey(key);
+  
+  const apiKey = await prisma.apiKey.findUnique({
+    where: { keyHash: hashedKey },
+    include: { organization: true }
+  });
+  
+  if (!apiKey || !apiKey.isActive) {
+    return null;
+  }
+  
+  // Update last used timestamp
+  await prisma.apiKey.update({
+    where: { id: apiKey.id },
+    data: { lastUsedAt: new Date() }
+  });
+  
+  return {
+    id: apiKey.id,
+    organizationId: apiKey.organizationId,
+    permissions: apiKey.permissions as string[],
+  };
+}
+```
+
+## Role-Based Access Control
+
+Implement fine-grained permissions:
+
+```typescript title="app/api/uploadthing/core.ts"
+const fileRouter = createUploadRouter<{
+  userId: string;
+  role: "admin" | "editor" | "viewer";
+  organizationId: string;
+}>()
+  
+  // Admin-only uploads
+  .addRoute("adminUploads",
+    f.fileUploader({ maxFileSize: "1GB" })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      if (user.role !== "admin") {
+        throw new Error("Admin access required");
+      }
+      
+      return {
+        userId: user.id,
+        role: user.role,
+        organizationId: user.organizationId,
+      };
+    })
+  )
+  
+  // Editor and admin uploads
+  .addRoute("contentUploads",
+    f.imageUploader({ maxFileSize: "50MB" })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      if (!["admin", "editor"].includes(user.role)) {
+        throw new Error("Editor access required");
+      }
+      
+      return {
+        userId: user.id,
+        role: user.role,
+        organizationId: user.organizationId,
+      };
+    })
+  );
+```
+
+## Project-Scoped Access
+
+Restrict uploads to specific projects:
+
+```typescript title="app/api/uploadthing/core.ts"
+const fileRouter = createUploadRouter<{
+  userId: string;
+  projectId: string;
+  projectRole: "owner" | "admin" | "member";
+}>()
+  .addRoute("projectFiles",
+    f.fileUploader({ maxFileSize: "100MB" })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      const projectId = req.headers.get("x-project-id");
+      if (!projectId) throw new Error("Project ID required");
+      
+      // Check project access
+      const projectAccess = await getProjectAccess(user.id, projectId);
+      if (!projectAccess) {
+        throw new Error("No access to this project");
+      }
+      
+      return {
+        userId: user.id,
+        projectId,
+        projectRole: projectAccess.role,
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      // Save file with project association
+      await saveFileToProject({
+        file,
+        projectId: metadata.projectId,
+        uploadedBy: metadata.userId,
+      });
+    })
+  );
+
+async function getProjectAccess(userId: string, projectId: string) {
+  const membership = await prisma.projectMembership.findFirst({
+    where: {
+      userId,
+      projectId,
+      status: "active",
+    },
+  });
+  
+  return membership ? { role: membership.role } : null;
+}
+```
+
+## Rate Limiting by User
+
+Implement per-user rate limiting:
+
+```typescript title="app/api/uploadthing/core.ts"
+import { rateLimit } from "@/lib/rate-limit";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+  tier: "free" | "pro" | "enterprise";
+}>()
+  .addRoute("userUploads",
+    f.fileUploader({ maxFileSize: "10MB" })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      // Rate limit based on user tier
+      const limits = {
+        free: { max: 10, window: "1h" },
+        pro: { max: 100, window: "1h" },
+        enterprise: { max: 1000, window: "1h" },
+      };
+      
+      const userLimit = limits[user.tier];
+      const rateLimitKey = `uploads:${user.id}`;
+      
+      const isAllowed = await rateLimit.check(
+        rateLimitKey,
+        userLimit.max,
+        userLimit.window
+      );
+      
+      if (!isAllowed) {
+        throw new Error(`Rate limit exceeded: ${userLimit.max} uploads per ${userLimit.window}`);
+      }
+      
+      return {
+        userId: user.id,
+        tier: user.tier,
+      };
+    })
+  );
+```
+
+## Quota Management
+
+Implement storage quotas per user/organization:
+
+```typescript title="app/api/uploadthing/core.ts"
+const fileRouter = createUploadRouter<{
+  userId: string;
+  organizationId: string;
+}>()
+  .addRoute("quotaAwareUploads",
+    f.fileUploader({ maxFileSize: "100MB" })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      // Check storage quota
+      const usage = await getStorageUsage(user.organizationId);
+      const quota = await getStorageQuota(user.organizationId);
+      
+      if (usage.bytes >= quota.bytes) {
+        throw new Error(`Storage quota exceeded: ${formatBytes(quota.bytes)} limit reached`);
+      }
+      
+      return {
+        userId: user.id,
+        organizationId: user.organizationId,
+      };
+    })
+    .onUploadStart(async ({ metadata, files }) => {
+      // Pre-validate file sizes against remaining quota
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      const usage = await getStorageUsage(metadata.organizationId);
+      const quota = await getStorageQuota(metadata.organizationId);
+      
+      if (usage.bytes + totalSize > quota.bytes) {
+        throw new Error("Upload would exceed storage quota");
+      }
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      // Update storage usage
+      await updateStorageUsage(metadata.organizationId, file.size);
+    })
+  );
+
+async function getStorageUsage(organizationId: string) {
+  const result = await prisma.upload.aggregate({
+    where: {
+      user: { organizationId },
+    },
+    _sum: { filesize: true },
+    _count: true,
+  });
+  
+  return {
+    bytes: result._sum.filesize || 0,
+    files: result._count,
+  };
+}
+```
+
+## Client-Side Authentication
+
+### Passing Auth Headers
+
+```tsx title="components/AuthenticatedUploader.tsx"
+import { CarcosaUploader } from "@carcosa/nextjs";
+import { useSession } from "next-auth/react";
+
+export function AuthenticatedUploader() {
+  const { data: session } = useSession();
+  
+  if (!session) {
+    return <div>Please log in to upload files</div>;
+  }
+  
+  return (
+    <CarcosaUploader
+      endpoint="userUploads"
+      headers={{
+        // Pass additional headers if needed
+        "x-user-id": session.user.id,
+        "x-organization-id": session.user.organizationId,
+      }}
+      onUploadComplete={(files) => {
+        console.log("Upload complete:", files);
+      }}
+    />
+  );
+}
+```
+
+### Using API Keys in Client
+
+```tsx title="components/ApiKeyUploader.tsx"
+import { CarcosaUploader } from "@carcosa/nextjs";
+
+export function ApiKeyUploader({ apiKey }: { apiKey: string }) {
+  return (
+    <CarcosaUploader
+      endpoint="serverUploads"
+      headers={{
+        "x-api-key": apiKey,
+      }}
+      onUploadComplete={(files) => {
+        console.log("Server upload complete:", files);
+      }}
+    />
+  );
+}
+```
+
+## Error Handling
+
+Handle authentication errors gracefully:
+
+```typescript title="app/api/uploadthing/core.ts"
+const fileRouter = createUploadRouter()
+  .addRoute("secureUploads",
+    f.fileUploader({ maxFileSize: "10MB" })
+    .middleware(async ({ req }) => {
+      try {
+        const user = await getUser(req);
+        if (!user) {
+          throw new Error("UNAUTHORIZED");
+        }
+        
+        return { userId: user.id };
+      } catch (error) {
+        // Categorize errors for better client handling
+        if (error.message === "UNAUTHORIZED") {
+          throw new Error("Please log in to upload files");
+        }
+        
+        if (error.message === "TOKEN_EXPIRED") {
+          throw new Error("Your session has expired. Please log in again");
+        }
+        
+        if (error.message === "INSUFFICIENT_PERMISSIONS") {
+          throw new Error("You don't have permission to upload files");
+        }
+        
+        // Generic error
+        throw new Error("Authentication failed");
+      }
+    })
+  );
+```
+
+## Security Best Practices
+
+### 1. Always Validate Tokens
+
+```typescript
+// ❌ Don't trust client-side data
+.middleware(async ({ req }) => {
+  const userId = req.headers.get("x-user-id"); // Never trust this
+  return { userId };
+})
+
+// ✅ Always validate server-side
+.middleware(async ({ req }) => {
+  const user = await getUser(req); // Validate token server-side
+  if (!user) throw new Error("Unauthorized");
+  return { userId: user.id };
+})
+```
+
+### 2. Use Proper Secret Management
+
+```bash
+# ❌ Weak secrets
+JWT_SECRET="secret123"
+
+# ✅ Strong, random secrets
+JWT_SECRET="abcd1234-5678-90ef-ghij-klmnopqrstuv"
+CARCOSA_SECRET="xyz789ab-cdef-0123-4567-890abcdefghi"
+```
+
+### 3. Implement Proper CORS
+
+```typescript title="app/api/uploadthing/route.ts"
+const { GET, POST } = createCarcosaApiHandler({
+  router: fileRouter,
+  config: {
+    cors: {
+      origin: process.env.NODE_ENV === "production" 
+        ? ["https://yourdomain.com"] // Restrict to your domain
+        : ["http://localhost:3000"],
+      credentials: true,
+    }
+  }
+});
+```
+
+### 4. Log Security Events
+
+```typescript
+.middleware(async ({ req }) => {
+  const user = await getUser(req);
+  
+  if (!user) {
+    // Log failed auth attempts
+    await logSecurityEvent({
+      type: "AUTH_FAILED",
+      ip: req.headers.get("x-forwarded-for"),
+      userAgent: req.headers.get("user-agent"),
+      timestamp: new Date(),
+    });
+    
+    throw new Error("Unauthorized");
+  }
+  
+  return { userId: user.id };
+})
+```
+
+## Next Steps
+
+- **[Configuration](/configuration)** - Configure auth providers
+- **[API Reference](/api-reference/auth-endpoints)** - Authentication API endpoints
+- **[Security Guide](/security)** - Advanced security practices
+- **[Multi-tenant](/features/multi-tenant)** - Organization-based auth

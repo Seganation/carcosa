@@ -1,0 +1,1 @@
+like a dashboard for usage and a gui for seeing all folders and files and current running docker containers and stuff things that coolify doesnt offer when you add a server

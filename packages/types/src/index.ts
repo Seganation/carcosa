@@ -61,6 +61,10 @@ export interface StorageAdapter {
     path: string,
     options?: { contentType?: string; expiresInSeconds?: number; metadata?: Record<string, string> }
   ) => Promise<SignedPutUrl>;
+  getSignedGetUrl: (
+    path: string,
+    options?: { expiresInSeconds?: number }
+  ) => Promise<string>;
   putObject: (
     path: string,
     body: Buffer | Uint8Array | string | ReadableStream | NodeJS.ReadableStream,
@@ -89,6 +93,7 @@ export interface InitUploadResponse {
 }
 
 export interface CompleteUploadRequest {
+  projectId: string;
   uploadId: string;
   metadata?: Record<string, unknown>;
 }

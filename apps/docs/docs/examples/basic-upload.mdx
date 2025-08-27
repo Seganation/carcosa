@@ -1,0 +1,689 @@
+---
+title: Basic Upload Example
+sidebar_position: 1
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Basic Upload Example
+
+Complete working example of a file upload system with Carcosa. Copy, paste, and customize for your needs.
+
+## Overview
+
+This example shows:
+- ✅ **Type-safe upload router** with middleware
+- ✅ **React components** with real-time progress
+- ✅ **Automatic image transformations**
+- ✅ **Error handling and validation**
+- ✅ **Database integration** for file metadata
+
+## Project Structure
+
+```
+my-app/
+├── app/
+│   ├── api/
+│   │   └── uploadthing/
+│   │       ├── core.ts      # Upload router
+│   │       └── route.ts     # API handler
+│   ├── upload/
+│   │   └── page.tsx         # Upload page
+│   └── layout.tsx           # Root layout
+├── components/
+│   └── file-uploader.tsx    # Upload component
+├── lib/
+│   ├── auth.ts              # Authentication
+│   └── db.ts                # Database client
+└── prisma/
+    └── schema.prisma        # Database schema
+```
+
+## 1. Database Schema
+
+First, set up your database schema:
+
+<Tabs>
+<TabItem value="prisma" label="Prisma Schema">
+
+```prisma title="prisma/schema.prisma"
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id @default(cuid())
+  email    String @unique
+  name     String?
+  uploads  Upload[]
+  createdAt DateTime @default(now())
+  
+  @@map("users")
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  filename  String
+  filesize  Int
+  filetype  String
+  url       String
+  key       String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("uploads")
+}
+```
+
+</TabItem>
+<TabItem value="setup" label="Database Setup">
+
+```bash
+# Install Prisma
+npm install prisma @prisma/client
+
+# Initialize Prisma
+npx prisma init
+
+# Generate client
+npx prisma generate
+
+# Push schema to database
+npx prisma db push
+```
+
+</TabItem>
+</Tabs>
+
+## 2. Environment Setup
+
+```bash title=".env.local"
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/myapp"
+
+# Storage (AWS S3)
+AWS_ACCESS_KEY_ID="your-aws-access-key"
+AWS_SECRET_ACCESS_KEY="your-aws-secret-key"
+AWS_REGION="us-east-1"
+AWS_BUCKET="your-bucket-name"
+
+# Carcosa
+CARCOSA_SECRET="your-super-secret-key-change-this"
+NEXT_PUBLIC_CARCOSA_ENDPOINT="http://localhost:3000"
+
+# Authentication (NextAuth.js example)
+NEXTAUTH_SECRET="your-nextauth-secret"
+NEXTAUTH_URL="http://localhost:3000"
+```
+
+## 3. Authentication Helper
+
+```typescript title="lib/auth.ts"
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+export async function getUser(req: Request) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return null;
+  }
+  
+  return {
+    id: session.user.id,
+    email: session.user.email!,
+    name: session.user.name,
+  };
+}
+```
+
+## 4. Database Client
+
+```typescript title="lib/db.ts"
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+```
+
+## 5. Upload Router
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+import { getUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+  userEmail: string;
+}>()
+  
+  // Profile pictures
+  .addRoute("profilePicture",
+    f.imageUploader({
+      maxFileSize: "2MB",
+      maxFileCount: 1,
+      
+      // Automatic image transformations
+      transforms: {
+        avatar: { width: 128, height: 128, fit: "cover" },
+        thumbnail: { width: 64, height: 64, fit: "cover" }
+      }
+    })
+    .middleware(async ({ req }) => {
+      // Authentication
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { 
+        userId: user.id,
+        userEmail: user.email 
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("✅ Profile picture upload complete:", file.url);
+      
+      // Save to database
+      await prisma.upload.create({
+        data: {
+          filename: file.name,
+          filesize: file.size,
+          filetype: file.type,
+          url: file.url,
+          key: file.key,
+          userId: metadata.userId,
+        },
+      });
+      
+      console.log("💾 Saved to database for user:", metadata.userEmail);
+    })
+  )
+  
+  // Gallery images
+  .addRoute("galleryImages",
+    f.imageUploader({
+      maxFileSize: "10MB",
+      maxFileCount: 10,
+      acceptedTypes: ["image/jpeg", "image/png", "image/webp"],
+      
+      // Multiple image sizes
+      transforms: {
+        thumbnail: { width: 200, height: 200, fit: "cover" },
+        medium: { width: 600, height: 600, fit: "inside" },
+        large: { width: 1200, height: 1200, fit: "inside" },
+        
+        // WebP optimization
+        webp: { quality: 85, format: "webp" }
+      }
+    })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { 
+        userId: user.id,
+        userEmail: user.email 
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log(`🖼️ Gallery image uploaded: ${file.name}`);
+      
+      // Save with transform URLs
+      await prisma.upload.create({
+        data: {
+          filename: file.name,
+          filesize: file.size,
+          filetype: file.type,
+          url: file.url,
+          key: file.key,
+          userId: metadata.userId,
+        },
+      });
+      
+      console.log("Available sizes:", {
+        original: file.url,
+        thumbnail: file.transforms.thumbnail,
+        medium: file.transforms.medium,
+        large: file.transforms.large,
+        webp: file.transforms.webp
+      });
+    })
+  )
+  
+  // Documents
+  .addRoute("documents",
+    f.documentUploader({
+      maxFileSize: "50MB",
+      maxFileCount: 5,
+      acceptedTypes: [".pdf", ".doc", ".docx", ".txt"]
+    })
+    .middleware(async ({ req }) => {
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { 
+        userId: user.id,
+        userEmail: user.email 
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log(`📄 Document uploaded: ${file.name}`);
+      
+      await prisma.upload.create({
+        data: {
+          filename: file.name,
+          filesize: file.size,
+          filetype: file.type,
+          url: file.url,
+          key: file.key,
+          userId: metadata.userId,
+        },
+      });
+    })
+  );
+
+export default fileRouter;
+export type FileRouter = typeof fileRouter;
+```
+
+## 6. API Route Handler
+
+```typescript title="app/api/uploadthing/route.ts"
+import { createCarcosaApiHandler } from "@carcosa/nextjs";
+import fileRouter from "./core";
+
+const { GET, POST } = createCarcosaApiHandler({
+  router: fileRouter,
+  config: {
+    // Enable real-time progress
+    enableWebSockets: true,
+    
+    // Storage configuration
+    storage: {
+      provider: "s3",
+      config: {
+        bucket: process.env.AWS_BUCKET!,
+        region: process.env.AWS_REGION!,
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      }
+    },
+    
+    // CORS configuration
+    cors: {
+      origin: process.env.NODE_ENV === "production" 
+        ? ["https://yourdomain.com"]
+        : ["http://localhost:3000"],
+      credentials: true
+    }
+  }
+});
+
+export { GET, POST };
+```
+
+## 7. Root Layout Provider
+
+```tsx title="app/layout.tsx"
+import { CarcosaProvider } from "@carcosa/nextjs";
+import { SessionProvider } from "next-auth/react";
+import type { FileRouter } from "./api/uploadthing/core";
+import "./globals.css";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <SessionProvider>
+          <CarcosaProvider<FileRouter>
+            endpoint="/api/uploadthing"
+            config={{
+              appearance: {
+                theme: "auto",
+                accentColor: "#3b82f6",
+                borderRadius: "8px",
+              },
+              enableWebSockets: true,
+              enableClipboard: true,
+              
+              // Global event handlers
+              onUploadStart: (files) => {
+                console.log(`🚀 Starting upload of ${files.length} files`);
+              },
+              
+              onUploadComplete: (files) => {
+                console.log("✅ All uploads complete:", files.length);
+              },
+              
+              onUploadError: (error, file) => {
+                console.error("❌ Upload failed:", error, file);
+              }
+            }}
+          >
+            {children}
+          </CarcosaProvider>
+        </SessionProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+## 8. Upload Components
+
+```tsx title="components/file-uploader.tsx"
+"use client";
+
+import { CarcosaUploader, CarcosaDropzone } from "@carcosa/nextjs";
+import { useState } from "react";
+import type { UploadedFile } from "@carcosa/file-router";
+
+export function ProfilePictureUploader() {
+  const [profilePicture, setProfilePicture] = useState<UploadedFile | null>(null);
+  
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Profile Picture</h3>
+      
+      <CarcosaUploader
+        endpoint="profilePicture"
+        onUploadComplete={(files) => {
+          setProfilePicture(files[0]);
+          console.log("Profile picture updated:", files[0]);
+        }}
+        onUploadError={(error) => {
+          console.error("Failed to upload profile picture:", error);
+        }}
+        className="border-2 border-dashed border-gray-300 rounded-lg p-6"
+      >
+        <div className="text-center">
+          {profilePicture ? (
+            <div className="space-y-2">
+              <img 
+                src={profilePicture.transforms.avatar} 
+                alt="Profile"
+                className="w-16 h-16 rounded-full mx-auto"
+              />
+              <p className="text-sm text-green-600">✅ Profile picture updated</p>
+            </div>
+          ) : (
+            <div>
+              <div className="text-4xl mb-2">👤</div>
+              <p>Upload profile picture</p>
+              <p className="text-sm text-gray-500">JPG, PNG up to 2MB</p>
+            </div>
+          )}
+        </div>
+      </CarcosaUploader>
+    </div>
+  );
+}
+
+export function GalleryUploader() {
+  const [images, setImages] = useState<UploadedFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold">Gallery Images</h3>
+      
+      <CarcosaDropzone
+        endpoint="galleryImages"
+        multiple={true}
+        enableClipboard={true}
+        className="min-h-40 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50"
+        
+        onUploadStart={() => setIsUploading(true)}
+        
+        onUploadProgress={(progress, file) => {
+          console.log(`📊 ${file.name}: ${progress}%`);
+        }}
+        
+        onUploadComplete={(files) => {
+          setImages(prev => [...prev, ...files]);
+          setIsUploading(false);
+          console.log(`✅ Uploaded ${files.length} images`);
+        }}
+        
+        onUploadError={(error) => {
+          setIsUploading(false);
+          console.error("Upload failed:", error);
+        }}
+      >
+        <div className="text-center p-8">
+          <div className="text-4xl mb-4">🖼️</div>
+          <p className="text-lg font-medium">
+            {isUploading ? "Uploading..." : "Drop images here"}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            Or click to browse • Up to 10 images, 10MB each
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            📋 You can also paste images directly!
+          </p>
+        </div>
+      </CarcosaDropzone>
+      
+      {/* Display uploaded images */}
+      {images.length > 0 && (
+        <div className="space-y-4">
+          <h4 className="font-medium">Uploaded Images ({images.length})</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {images.map((image) => (
+              <div key={image.key} className="space-y-2">
+                <img
+                  src={image.transforms.medium}
+                  alt={image.name}
+                  className="w-full h-32 object-cover rounded"
+                />
+                <p className="text-xs text-gray-600 truncate">{image.name}</p>
+                <div className="flex space-x-1 text-xs">
+                  <a 
+                    href={image.transforms.large} 
+                    target="_blank" 
+                    className="text-blue-500 hover:underline"
+                  >
+                    Large
+                  </a>
+                  <span>•</span>
+                  <a 
+                    href={image.transforms.webp} 
+                    target="_blank"
+                    className="text-blue-500 hover:underline"
+                  >
+                    WebP
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DocumentUploader() {
+  const [documents, setDocuments] = useState<UploadedFile[]>([]);
+  
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Documents</h3>
+      
+      <CarcosaUploader
+        endpoint="documents"
+        multiple={true}
+        onUploadComplete={(files) => {
+          setDocuments(prev => [...prev, ...files]);
+          console.log(`📄 Uploaded ${files.length} documents`);
+        }}
+        className="border-2 border-dashed border-gray-300 rounded-lg"
+      >
+        <div className="text-center p-6">
+          <div className="text-4xl mb-2">📁</div>
+          <p>Upload documents</p>
+          <p className="text-sm text-gray-500">PDF, DOC, DOCX, TXT up to 50MB</p>
+        </div>
+      </CarcosaUploader>
+      
+      {/* Document list */}
+      {documents.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="font-medium">Uploaded Documents ({documents.length})</h4>
+          {documents.map((doc) => (
+            <div key={doc.key} className="flex items-center justify-between p-3 bg-gray-100 rounded">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">📄</span>
+                <div>
+                  <p className="font-medium">{doc.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {(doc.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              </div>
+              <a
+                href={doc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                View
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## 9. Upload Page
+
+```tsx title="app/upload/page.tsx"
+import { 
+  ProfilePictureUploader,
+  GalleryUploader,
+  DocumentUploader 
+} from "@/components/file-uploader";
+
+export default function UploadPage() {
+  return (
+    <div className="max-w-4xl mx-auto p-8 space-y-12">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold mb-4">File Upload Demo</h1>
+        <p className="text-gray-600">
+          Complete example of Carcosa file uploads with real-time progress,
+          automatic transformations, and database integration.
+        </p>
+      </div>
+      
+      <div className="grid gap-12">
+        {/* Profile Picture */}
+        <ProfilePictureUploader />
+        
+        {/* Gallery Images */}
+        <GalleryUploader />
+        
+        {/* Documents */}
+        <DocumentUploader />
+      </div>
+      
+      <div className="text-center text-sm text-gray-500">
+        <p>✨ Features enabled:</p>
+        <ul className="mt-2 space-y-1">
+          <li>🔄 Real-time progress via WebSockets</li>
+          <li>📋 Clipboard paste-to-upload</li>
+          <li>🖼️ Automatic image transformations</li>
+          <li>💾 Database metadata storage</li>
+          <li>🔒 Authentication middleware</li>
+          <li>❌ Error handling & validation</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+```
+
+## 10. Running the Example
+
+```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your values
+
+# Set up database
+npx prisma generate
+npx prisma db push
+
+# Start development server
+npm run dev
+```
+
+Visit `http://localhost:3000/upload` to see the example in action!
+
+## Key Features Demonstrated
+
+### ✅ **Type Safety**
+- Router endpoints are fully typed
+- Middleware context is type-safe
+- Client components get automatic type inference
+
+### 🔄 **Real-time Progress**
+- WebSocket-powered progress updates
+- No polling needed
+- Live progress for each file
+
+### 🖼️ **Image Transformations**
+- Automatic thumbnail generation
+- Multiple sizes (avatar, medium, large)
+- Format optimization (WebP)
+
+### 💾 **Database Integration**
+- File metadata saved to database
+- User association
+- Upload history tracking
+
+### 🔒 **Security**
+- Authentication middleware
+- File type validation
+- Size limits enforced
+
+### 📋 **Enhanced UX**
+- Clipboard paste uploads
+- Drag & drop interface
+- Multiple file selection
+- Error handling with retry
+
+## Next Steps
+
+Customize this example for your needs:
+
+- **[Authentication](/authentication)** - Integrate your auth system
+- **[Storage](/storage/overview)** - Configure storage providers
+- **[Transformations](/file-router/transformations)** - Advanced image processing
+- **[Multi-tenant](/features/multi-tenant)** - Add organization support
+
+## Complete Source Code
+
+The complete working example is available in our **[GitHub repository](https://github.com/carcosa/examples/tree/main/basic-upload)**.

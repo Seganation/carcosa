@@ -1,8 +1,10 @@
 {
   "extends": "@repo/typescript-config/react-library.json",
   "compilerOptions": {
-    "outDir": "dist"
+    "outDir": "dist",
+    "rootDir": ".",
+    "baseUrl": "."
   },
-  "include": ["src"],
+  "include": ["src", "@carcosa"],
   "exclude": ["node_modules", "dist"]
 }

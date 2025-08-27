@@ -1,0 +1,281 @@
+---
+title: Welcome to Carcosa
+sidebar_position: 1
+slug: /
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import CodeBlock from '@theme/CodeBlock';
+
+# 🚀 Welcome to Carcosa
+
+<div className="hero-section">
+  <h1>The Complete File Management Platform</h1>
+  <p>
+    Enterprise-grade file uploads, transformations, and management for modern applications.
+    TypeScript-first, real-time progress, and built for scale.
+  </p>
+</div>
+
+## Why Choose Carcosa?
+
+<div className="feature-card">
+  <h3>🔥 **Superior to UploadThing**</h3>
+  
+  Carcosa exceeds UploadThing's complete roadmap while adding enterprise features they haven't even planned.
+  
+  - ✅ **Real-time progress** with WebSocket updates
+  - ✅ **Multi-tenant architecture** for enterprise apps  
+  - ✅ **API key authentication** with granular permissions
+  - ✅ **Audit logging** for compliance and security
+  - ✅ **Video processing** with background queues
+  - ✅ **Multi-cloud storage** (S3, R2, custom adapters)
+</div>
+
+## Quick Comparison
+
+| Feature | UploadThing | **Carcosa** |
+|---------|-------------|-------------|
+| **Type Safety** | Partial | ✅ **Complete** |
+| **Real-time Progress** | Basic | ✅ **WebSocket-powered** |
+| **Multi-storage** | No | ✅ **S3, R2, Custom** |
+| **Enterprise Features** | None | ✅ **Full Suite** |
+| **Video Processing** | No | ✅ **Background Queues** |
+| **Developer Experience** | Good | ✅ **Exceptional** |
+
+## Getting Started
+
+Get up and running with Carcosa in minutes:
+
+<Tabs>
+<TabItem value="nextjs" label="Next.js">
+
+```bash
+# Install Carcosa packages
+npm install @carcosa/nextjs @carcosa/file-router
+
+# Add to your Next.js app
+# app/api/carcosa/route.ts
+```
+
+```typescript
+import { createFileRouter, f } from '@carcosa/file-router';
+
+const fileRouter = createFileRouter({
+  // 🖼️ Image uploads with automatic transformations
+  images: f.imageUploader({
+    maxFileSize: '4MB',
+    maxFileCount: 10
+  }),
+  
+  // 📄 Document uploads
+  documents: f.fileUploader({
+    maxFileSize: '50MB',
+    acceptedTypes: ['.pdf', '.doc', '.docx']
+  })
+});
+
+export { fileRouter };
+```
+
+</TabItem>
+<TabItem value="react" label="React">
+
+```bash
+# Install React components
+npm install @carcosa/react @carcosa/file-router
+```
+
+```tsx
+import { CarcosaUploader } from '@carcosa/react';
+
+function MyApp() {
+  return (
+    <CarcosaUploader
+      uploadType="images"
+      onUploadComplete={(files) => {
+        console.log('✅ Upload complete:', files);
+      }}
+      enableClipboard={true}
+      maxFiles={10}
+    />
+  );
+}
+```
+
+</TabItem>
+<TabItem value="vanilla" label="Vanilla JS">
+
+```bash
+# Install core SDK
+npm install @carcosa/sdk
+```
+
+```javascript
+import { CarcosaClient } from '@carcosa/sdk';
+
+const client = new CarcosaClient({
+  apiKey: 'your-api-key',
+  endpoint: 'https://api.carcosa.dev'
+});
+
+// Upload files with progress tracking
+await client.upload({
+  files: fileList,
+  onProgress: (progress) => {
+    console.log(`Progress: ${progress}%`);
+  }
+});
+```
+
+</TabItem>
+</Tabs>
+
+## Core Features
+
+### 🎯 **Typed Upload Routes**
+
+Define your upload endpoints with full TypeScript safety:
+
+```typescript
+const uploadRouter = createUploadRouter<{
+  userId: string;
+  projectId: string;
+}>()
+  .addRoute('profilePictures', 
+    f.imageUploader({ maxFileSize: '2MB' })
+      .middleware(async ({ req }) => {
+        // Type-safe middleware
+        return { 
+          userId: req.user.id,
+          projectId: req.user.projectId 
+        };
+      })
+      .onUploadComplete(async ({ metadata, file }) => {
+        // Automatically typed metadata
+        console.log(`User ${metadata.userId} uploaded ${file.name}`);
+      })
+  );
+```
+
+### ⚡ **Real-time Progress**
+
+Get live upload progress with WebSocket updates:
+
+```tsx
+import { useUploadProgress } from '@carcosa/react';
+
+function UploadComponent() {
+  const { progress, isUploading, upload } = useUploadProgress();
+  
+  return (
+    <div>
+      <input type="file" onChange={(e) => upload(e.target.files)} />
+      {isUploading && (
+        <div>Progress: {progress}%</div>
+      )}
+    </div>
+  );
+}
+```
+
+### 🖼️ **Automatic Transformations**
+
+Images are automatically optimized and resized:
+
+```typescript
+// Upload returns multiple sizes automatically
+const result = await upload(imageFile);
+
+console.log(result.transforms);
+// {
+//   thumbnail: "image.jpg?w=150&h=150&fit=cover",
+//   medium: "image.jpg?w=500&h=500&fit=inside", 
+//   large: "image.jpg?w=1200&h=1200&fit=inside"
+// }
+```
+
+### 🏢 **Multi-tenant Ready**
+
+Built for enterprise apps with team isolation:
+
+```typescript
+// Automatic tenant scoping
+const fileRouter = createFileRouter({
+  documents: f.fileUploader()
+    .middleware(async ({ req }) => ({
+      organizationId: req.user.organizationId,
+      teamId: req.user.teamId,
+      userId: req.user.id
+    }))
+});
+```
+
+## What's New <span className="badge badge--new">Latest</span>
+
+### 📋 **Clipboard Upload Support**
+Paste files directly from clipboard:
+
+```tsx
+<CarcosaUploader enableClipboard={true} />
+```
+
+### 🌊 **Streaming Uploads**
+Handle large files with chunked streaming:
+
+```typescript
+import { useStreamingUpload } from '@carcosa/file-router';
+
+const { uploadFile } = useStreamingUpload({
+  chunkSize: 5 * 1024 * 1024, // 5MB chunks
+  onProgress: (uploaded, total) => setProgress(uploaded/total * 100)
+});
+```
+
+### 📱 **React Native Support**
+Mobile-optimized upload hooks:
+
+```typescript
+import { useNativeUpload } from '@carcosa/react-native';
+
+const { uploadFile, isUploading } = useNativeUpload({
+  endpoint: '/api/upload',
+  onProgress: (progress) => setProgress(progress)
+});
+```
+
+## Enterprise Features <span className="badge badge--enterprise">Enterprise</span>
+
+- **🔐 API Key Authentication** - Granular permissions and rate limiting
+- **📊 Audit Logging** - Complete activity tracking and compliance
+- **🏢 Multi-tenant Architecture** - Organization and team isolation
+- **⚡ Real-time Updates** - WebSocket-powered progress and notifications
+- **🎥 Video Processing** - Background queues with multiple format support
+- **☁️ Multi-cloud Storage** - S3, R2, and custom storage adapters
+
+## Ready to Get Started?
+
+Choose your integration path:
+
+- **[Quick Start](/quick-start)** - Get running in 5 minutes
+- **[Next.js Guide](/nextjs/setup)** - Full Next.js integration
+- **[React Components](/nextjs/components)** - Drop-in upload components
+- **[API Reference](/api-reference/overview)** - Complete API documentation
+
+<div className="feature-card">
+  <h3>🎯 **Migration from UploadThing?**</h3>
+  
+  We provide seamless migration tools and guides:
+  
+  - **[Migration Guide](/migration/from-uploadthing)** - Step-by-step migration
+  - **[API Compatibility](/migration/from-uploadthing#api-compatibility)** - Drop-in replacement
+  - **[Feature Comparison](/migration/from-uploadthing#feature-comparison)** - See what you gain
+</div>
+
+---
+
+<div style={{ textAlign: 'center', margin: '2rem 0' }}>
+  <p><strong>Ready to build the future of file uploads?</strong></p>
+  <p>Carcosa is production-ready and waiting for you! 🚀</p>
+</div>

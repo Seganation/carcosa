@@ -2,20 +2,83 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
   "tasks": {
-    "build": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "web#build": {
+      "dependsOn": ["^build", "@carcosa/database#db:generate"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": ["DATABASE_URL"]
+    },
+    "test#build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
-    "lint": {
-      "dependsOn": ["^lint"]
+    "api#build": {
+      "dependsOn": ["^build", "@carcosa/database#db:generate"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**"],
+      "env": ["DATABASE_URL"]
     },
-    "check-types": {
-      "dependsOn": ["^check-types"]
+    "docs#build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**"]
     },
-    "dev": {
+    "web#dev": {
+      "dependsOn": ["@carcosa/database#db:generate"],
       "cache": false,
       "persistent": true
+    },
+    "test#dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "api#dev": {
+      "dependsOn": ["@carcosa/database#db:generate"],
+      "cache": false,
+      "persistent": true
+    },
+    "docs#dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "web#lint": {
+      "dependsOn": ["^build"]
+    },
+    "test#lint": {
+      "dependsOn": ["^build"]
+    },
+    "api#lint": {
+      "dependsOn": ["^build"]
+    },
+    "docs#lint": {
+      "dependsOn": ["^build"]
+    },
+    "web#check-types": {
+      "dependsOn": ["^build"]
+    },
+    "test#check-types": {
+      "dependsOn": ["^build"]
+    },
+    "api#check-types": {
+      "dependsOn": ["^build"]
+    },
+    "docs#check-types": {
+      "dependsOn": ["^build"]
+    },
+    "@carcosa/database#db:generate": {
+      "cache": false
+    },
+    "@carcosa/database#db:migrate": {
+      "cache": false,
+      "persistent": true
+    },
+    "@carcosa/database#db:deploy": {
+      "cache": false
     }
   }
 }

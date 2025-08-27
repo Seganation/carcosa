@@ -1,0 +1,30 @@
+{
+  "id": "configuration",
+  "title": "Configuration",
+  "description": "Complete configuration guide for Carcosa. Customize every aspect of your file upload system.",
+  "source": "@site/docs/configuration.mdx",
+  "sourceDirName": ".",
+  "slug": "/configuration",
+  "permalink": "/configuration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/carcosa/carcosa/tree/main/apps/docs/docs/configuration.mdx",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "title": "Configuration",
+    "sidebar_position": 4
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Installation",
+    "permalink": "/installation"
+  },
+  "next": {
+    "title": "Authentication",
+    "permalink": "/authentication"
+  }
+}

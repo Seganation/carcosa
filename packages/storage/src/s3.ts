@@ -31,6 +31,16 @@ export class S3Adapter implements StorageAdapter {
     return { url, method: "PUT", headers: options?.contentType ? { "content-type": options.contentType } : undefined, expiresAt: Date.now() + expiresIn * 1000 };
   }
 
+  async getSignedGetUrl(path: string, options?: { expiresInSeconds?: number }): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: path,
+    });
+    const expiresIn = options?.expiresInSeconds ?? 900;
+    const url = await getSignedUrl(this.client, command, { expiresIn });
+    return url;
+  }
+
   async putObject(path: string, body: any, metadata?: Record<string, string>, contentType?: string): Promise<void> {
     await this.client.send(
       new PutObjectCommand({ Bucket: this.bucketName, Key: path, Body: body as any, Metadata: metadata, ContentType: contentType })

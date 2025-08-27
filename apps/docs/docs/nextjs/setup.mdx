@@ -1,0 +1,798 @@
+---
+title: Next.js Setup
+sidebar_position: 1
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Next.js Setup Guide
+
+Complete guide to integrating Carcosa with your Next.js application. Works with both App Router and Pages Router.
+
+## Installation
+
+Install the required packages:
+
+```bash
+npm install @carcosa/nextjs @carcosa/file-router
+```
+
+## Database Setup
+
+First, set up your database schema:
+
+<Tabs>
+<TabItem value="prisma" label="Prisma (Recommended)">
+
+```bash
+# Install Prisma if you haven't already
+npm install prisma @prisma/client @carcosa/database
+```
+
+```prisma title="prisma/schema.prisma"
+// Add to your existing schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or "mysql", "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Carcosa models (add these to your schema)
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  teams     Team[]
+  projects  Project[]
+  users     User[]
+  buckets   Bucket[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String  @id @default(cuid())
+  email          String  @unique
+  name           String?
+  organizationId String
+  
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploads      Upload[]
+  apiKeys      ApiKey[]
+  
+  @@map("users")
+}
+
+model Project {
+  id             String @id @default(cuid())
+  name           String
+  slug           String @unique
+  organizationId String
+  
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploads      Upload[]
+  files        File[]
+  
+  @@map("projects")
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  filename  String
+  filesize  Int
+  filetype  String
+  url       String
+  key       String   @unique
+  status    String   @default("pending")
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+  
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("uploads")
+}
+
+model File {
+  id          String   @id @default(cuid())
+  name        String
+  path        String
+  size        Int
+  type        String
+  url         String
+  version     String   @default("1")
+  projectId   String
+  tenantId    String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Transforms for images/videos
+  transforms Json?
+  
+  @@unique([projectId, path, version])
+  @@map("files")
+}
+```
+
+```bash
+# Generate Prisma client
+npx prisma generate
+npx prisma db push
+```
+
+</TabItem>
+<TabItem value="drizzle" label="Drizzle ORM">
+
+```typescript title="lib/db/schema.ts"
+import { 
+  pgTable, 
+  varchar, 
+  text, 
+  integer, 
+  timestamp, 
+  json 
+} from 'drizzle-orm/pg-core';
+
+export const organizations = pgTable('organizations', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 255 }).unique().notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const users = pgTable('users', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  email: varchar('email', { length: 255 }).unique().notNull(),
+  name: varchar('name', { length: 255 }),
+  organizationId: varchar('organization_id', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const projects = pgTable('projects', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 255 }).unique().notNull(),
+  organizationId: varchar('organization_id', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const files = pgTable('files', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  path: varchar('path', { length: 500 }).notNull(),
+  size: integer('size').notNull(),
+  type: varchar('type', { length: 100 }).notNull(),
+  url: text('url').notNull(),
+  version: varchar('version', { length: 50 }).default('1'),
+  projectId: varchar('project_id', { length: 255 }).notNull(),
+  tenantId: varchar('tenant_id', { length: 255 }),
+  transforms: json('transforms'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+```
+
+</TabItem>
+</Tabs>
+
+## Environment Configuration
+
+Add your environment variables:
+
+```bash title=".env.local"
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/carcosa"
+
+# Storage Provider (choose one)
+# AWS S3
+AWS_ACCESS_KEY_ID="your-aws-access-key"
+AWS_SECRET_ACCESS_KEY="your-aws-secret"
+AWS_REGION="us-east-1"
+AWS_BUCKET="your-bucket-name"
+
+# OR Cloudflare R2
+R2_ACCOUNT_ID="your-account-id"
+R2_ACCESS_KEY_ID="your-r2-access-key"
+R2_SECRET_ACCESS_KEY="your-r2-secret"
+R2_BUCKET="your-bucket-name"
+
+# Carcosa Configuration
+CARCOSA_SECRET="your-super-secret-key-change-this-in-production"
+NEXT_PUBLIC_CARCOSA_ENDPOINT="http://localhost:3000"
+
+# Optional: Redis for caching and rate limiting
+REDIS_URL="redis://localhost:6379"
+
+# Optional: Webhook endpoint
+CARCOSA_WEBHOOK_SECRET="your-webhook-secret"
+```
+
+## App Router Setup
+
+### 1. Create Upload Router
+
+<Tabs>
+<TabItem value="basic" label="Basic Setup">
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+import { auth } from "@/lib/auth"; // Your auth solution
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+  organizationId: string;
+}>()
+  
+  // 🖼️ Profile pictures
+  .addRoute("profilePicture", 
+    f.imageUploader({
+      maxFileSize: "2MB",
+      maxFileCount: 1
+    })
+    .middleware(async ({ req }) => {
+      const user = await auth.getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { 
+        userId: user.id,
+        organizationId: user.organizationId 
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("✅ Profile picture uploaded:", file.url);
+      
+      // Update user profile picture in database
+      await updateUserProfilePicture(metadata.userId, file.url);
+    })
+  )
+  
+  // 📄 Document uploads
+  .addRoute("documentUploader",
+    f.fileUploader({
+      maxFileSize: "50MB",
+      maxFileCount: 10,
+      acceptedTypes: [".pdf", ".doc", ".docx", ".txt", ".csv"]
+    })
+    .middleware(async ({ req }) => {
+      const user = await auth.getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { 
+        userId: user.id,
+        organizationId: user.organizationId 
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("📁 Document uploaded:", file.name);
+      
+      // Save to database, trigger processing, etc.
+      await saveDocumentToDatabase({
+        filename: file.name,
+        url: file.url,
+        userId: metadata.userId,
+        organizationId: metadata.organizationId
+      });
+    })
+  );
+
+export default fileRouter;
+export type FileRouter = typeof fileRouter;
+```
+
+</TabItem>
+<TabItem value="advanced" label="Advanced Setup">
+
+```typescript title="app/api/uploadthing/core.ts"
+import { createUploadRouter, f } from "@carcosa/file-router";
+import { auth } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
+import { auditLog } from "@/lib/audit";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+  organizationId: string;
+  projectId?: string;
+  teamId?: string;
+}>()
+  
+  // 🖼️ Gallery images with transformations
+  .addRoute("galleryImages",
+    f.imageUploader({
+      maxFileSize: "10MB",
+      maxFileCount: 20,
+      acceptedTypes: ["image/jpeg", "image/png", "image/webp"],
+      
+      // Advanced image processing
+      transforms: {
+        thumbnail: { width: 150, height: 150, fit: "cover" },
+        medium: { width: 500, height: 500, fit: "inside" },
+        large: { width: 1200, height: 1200, fit: "inside" },
+        watermark: { 
+          text: "© MyApp", 
+          position: "bottom-right",
+          opacity: 0.7 
+        }
+      }
+    })
+    .middleware(async ({ req }) => {
+      // Rate limiting
+      await rateLimit.check(req, "upload", 100); // 100 uploads per hour
+      
+      // Authentication
+      const user = await auth.getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      // Project-based access control
+      const projectId = req.headers.get("x-project-id");
+      if (projectId) {
+        const hasAccess = await auth.hasProjectAccess(user.id, projectId);
+        if (!hasAccess) throw new Error("No project access");
+      }
+      
+      return {
+        userId: user.id,
+        organizationId: user.organizationId,
+        projectId: projectId || undefined,
+        teamId: user.teamId
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("🖼️ Gallery image uploaded:", file.url);
+      
+      // Audit logging
+      await auditLog.create({
+        action: "file.upload",
+        resourceType: "image",
+        resourceId: file.key,
+        userId: metadata.userId,
+        organizationId: metadata.organizationId,
+        metadata: {
+          filename: file.name,
+          size: file.size,
+          transforms: file.transforms
+        }
+      });
+      
+      // Save to database with metadata
+      await saveImageToDatabase({
+        filename: file.name,
+        url: file.url,
+        key: file.key,
+        size: file.size,
+        transforms: file.transforms,
+        userId: metadata.userId,
+        organizationId: metadata.organizationId,
+        projectId: metadata.projectId,
+        teamId: metadata.teamId
+      });
+    })
+  )
+  
+  // 🎥 Video uploads with processing
+  .addRoute("videoUploader",
+    f.videoUploader({
+      maxFileSize: "500MB",
+      maxFileCount: 5,
+      acceptedTypes: ["video/mp4", "video/webm", "video/quicktime"],
+      
+      // Video processing options
+      processing: {
+        formats: ["720p", "1080p"],
+        thumbnail: { time: "00:00:02" },
+        preview: { duration: 10 }
+      }
+    })
+    .middleware(async ({ req }) => {
+      const user = await auth.getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      // Check video upload quota
+      const quota = await getVideoQuota(user.organizationId);
+      if (quota.used >= quota.limit) {
+        throw new Error("Video quota exceeded");
+      }
+      
+      return {
+        userId: user.id,
+        organizationId: user.organizationId
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("🎥 Video uploaded, starting processing:", file.url);
+      
+      // Queue video processing
+      await queueVideoProcessing({
+        fileKey: file.key,
+        url: file.url,
+        userId: metadata.userId,
+        organizationId: metadata.organizationId
+      });
+    })
+  );
+
+export default fileRouter;
+export type FileRouter = typeof fileRouter;
+```
+
+</TabItem>
+</Tabs>
+
+### 2. Create API Route
+
+```typescript title="app/api/uploadthing/route.ts"
+import { createCarcosaApiHandler } from "@carcosa/nextjs";
+import fileRouter from "./core";
+
+const { GET, POST } = createCarcosaApiHandler({
+  router: fileRouter,
+  config: {
+    // Enable real-time progress via WebSockets
+    enableWebSockets: true,
+    
+    // CORS configuration
+    cors: {
+      origin: process.env.NODE_ENV === "production" 
+        ? ["https://yourdomain.com"]
+        : ["http://localhost:3000"],
+      credentials: true
+    },
+    
+    // Rate limiting
+    rateLimit: {
+      max: 100,
+      windowMs: 60 * 60 * 1000, // 1 hour
+    },
+    
+    // File storage configuration
+    storage: {
+      provider: "s3", // or "r2" or "custom"
+      config: {
+        bucket: process.env.AWS_BUCKET!,
+        region: process.env.AWS_REGION!,
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      }
+    }
+  }
+});
+
+export { GET, POST };
+```
+
+### 3. Root Layout Configuration
+
+```typescript title="app/layout.tsx"
+import { CarcosaProvider } from "@carcosa/nextjs";
+import type { FileRouter } from "./api/uploadthing/core";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <CarcosaProvider<FileRouter>
+          endpoint="/api/uploadthing"
+          config={{
+            // UI appearance
+            appearance: {
+              theme: "auto", // "light" | "dark" | "auto"
+              accentColor: "#2563eb",
+              borderRadius: "8px",
+            },
+            
+            // Real-time progress via WebSockets
+            enableWebSockets: true,
+            
+            // Enable clipboard upload
+            enableClipboard: true,
+            
+            // Custom event handlers
+            onUploadStart: (files) => {
+              console.log("🚀 Upload started:", files.length, "files");
+            },
+            
+            onUploadProgress: (progress, file) => {
+              console.log(`📊 ${file.name}: ${progress}%`);
+            },
+            
+            onUploadComplete: (files) => {
+              console.log("✅ All uploads complete:", files);
+            },
+            
+            onUploadError: (error, file) => {
+              console.error("❌ Upload error:", error, file);
+            }
+          }}
+        >
+          {children}
+        </CarcosaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+## Pages Router Setup
+
+<Tabs>
+<TabItem value="pages-api" label="API Route">
+
+```typescript title="pages/api/uploadthing.ts"
+import { createCarcosaApiHandler } from "@carcosa/nextjs";
+import { createUploadRouter, f } from "@carcosa/file-router";
+
+const fileRouter = createUploadRouter<{
+  userId: string;
+}>()
+  .addRoute("imageUploader", 
+    f.imageUploader({ maxFileSize: "4MB" })
+    .middleware(async ({ req }) => {
+      // Your auth logic here
+      const user = await getUser(req);
+      if (!user) throw new Error("Unauthorized");
+      
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Upload complete:", file.url);
+    })
+  );
+
+export default createCarcosaApiHandler({
+  router: fileRouter,
+});
+
+export type FileRouter = typeof fileRouter;
+```
+
+</TabItem>
+<TabItem value="pages-app" label="App Configuration">
+
+```typescript title="pages/_app.tsx"
+import { CarcosaProvider } from "@carcosa/nextjs";
+import type { FileRouter } from "./api/uploadthing";
+import type { AppProps } from "next/app";
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <CarcosaProvider<FileRouter>
+      endpoint="/api/uploadthing"
+      config={{
+        appearance: {
+          theme: "auto",
+          accentColor: "#2563eb",
+        },
+        enableWebSockets: true,
+      }}
+    >
+      <Component {...pageProps} />
+    </CarcosaProvider>
+  );
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Authentication Integration
+
+Integrate with your existing auth solution:
+
+<Tabs>
+<TabItem value="nextauth" label="NextAuth.js">
+
+```typescript title="lib/auth.ts"
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+export async function getUser(req: Request) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return null;
+  }
+  
+  return {
+    id: session.user.id,
+    email: session.user.email!,
+    organizationId: session.user.organizationId,
+    teamId: session.user.teamId,
+  };
+}
+
+export async function hasProjectAccess(userId: string, projectId: string) {
+  // Check if user has access to the project
+  const project = await prisma.project.findFirst({
+    where: {
+      id: projectId,
+      organization: {
+        users: {
+          some: { id: userId }
+        }
+      }
+    }
+  });
+  
+  return !!project;
+}
+```
+
+</TabItem>
+<TabItem value="clerk" label="Clerk">
+
+```typescript title="lib/auth.ts"
+import { auth } from "@clerk/nextjs";
+
+export async function getUser(req: Request) {
+  const { userId, orgId } = auth();
+  
+  if (!userId) {
+    return null;
+  }
+  
+  return {
+    id: userId,
+    organizationId: orgId || "personal",
+    teamId: undefined, // Get from your database
+  };
+}
+```
+
+</TabItem>
+<TabItem value="supabase" label="Supabase Auth">
+
+```typescript title="lib/auth.ts"
+import { createServerClient } from "@supabase/ssr";
+
+export async function getUser(req: Request) {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    // ... cookie configuration
+  );
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return null;
+  }
+  
+  return {
+    id: user.id,
+    email: user.email!,
+    organizationId: user.user_metadata.organizationId,
+    teamId: user.user_metadata.teamId,
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Testing Your Setup
+
+Create a test page to verify everything works:
+
+```tsx title="app/test-upload/page.tsx"
+import { CarcosaUploader, CarcosaDropzone } from "@carcosa/nextjs";
+
+export default function TestUploadPage() {
+  return (
+    <div className="max-w-2xl mx-auto p-8 space-y-8">
+      <h1 className="text-3xl font-bold">Test Carcosa Upload</h1>
+      
+      {/* Image Upload */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Profile Picture</h2>
+        <CarcosaUploader
+          endpoint="profilePicture"
+          onUploadComplete={(files) => {
+            console.log("✅ Profile picture uploaded:", files);
+            alert("Upload complete! Check console for details.");
+          }}
+          onUploadError={(error) => {
+            console.error("❌ Upload failed:", error);
+            alert("Upload failed: " + error.message);
+          }}
+        />
+      </div>
+      
+      {/* Document Upload */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Documents</h2>
+        <CarcosaDropzone
+          endpoint="documentUploader"
+          multiple={true}
+          className="min-h-32 border-2 border-dashed border-gray-300 rounded-lg"
+        >
+          <div className="text-center p-8">
+            <p className="text-lg">Drop documents here</p>
+            <p className="text-sm text-gray-500 mt-2">
+              PDF, DOC, DOCX up to 50MB
+            </p>
+          </div>
+        </CarcosaDropzone>
+      </div>
+    </div>
+  );
+}
+```
+
+## Next Steps
+
+Your Next.js integration is now complete! Explore these advanced features:
+
+- **[Components Guide](/nextjs/components)** - All available components
+- **[Hooks Reference](/nextjs/hooks)** - React hooks for custom UIs
+- **[Form Integration](/nextjs/forms)** - Integrate with React Hook Form
+- **[Server Actions](/nextjs/server-actions)** - Use with Next.js Server Actions
+
+## Troubleshooting
+
+### Common Issues
+
+**1. "Module not found" errors**
+
+Make sure you have all required dependencies:
+
+```bash
+npm install @carcosa/nextjs @carcosa/file-router
+```
+
+**2. "Unauthorized" errors**
+
+Check your auth middleware is correctly implemented:
+
+```typescript
+.middleware(async ({ req }) => {
+  const user = await getUser(req);
+  if (!user) {
+    console.log("❌ No user found in request");
+    throw new Error("Unauthorized");
+  }
+  
+  console.log("✅ User authenticated:", user.id);
+  return { userId: user.id };
+})
+```
+
+**3. Storage errors**
+
+Verify your environment variables are set correctly:
+
+```bash
+echo $AWS_ACCESS_KEY_ID
+echo $AWS_SECRET_ACCESS_KEY
+echo $AWS_BUCKET
+```
+
+**4. WebSocket connection issues**
+
+Ensure WebSockets are enabled in your provider configuration:
+
+```typescript
+<CarcosaProvider
+  config={{
+    enableWebSockets: true, // ✅ Make sure this is enabled
+  }}
+>
+```
+
+For more help, check the **[troubleshooting guide](/troubleshooting)** or visit our **[Discord community](https://discord.gg/carcosa)**.
