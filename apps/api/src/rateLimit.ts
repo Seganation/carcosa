@@ -1,13 +1,18 @@
 import type { Request, Response, NextFunction } from "express";
+import { rateLimitMiddleware, skipInDevelopment } from "./middlewares/advanced-rate-limit.js";
 
-export function createRateLimit(opts: { redisUrl?: string; pgUrl: string }) {
-  // For now, just return a pass-through middleware to disable rate limiting
-  return async function rateLimit(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) {
-    // Rate limiting disabled for development
-    return next();
-  };
+/**
+ * Create rate limit middleware
+ *
+ * Now uses in-memory rate limiting with VPS RAM (no Redis dependency)
+ *
+ * @param opts - Options (maintained for backward compatibility)
+ * @returns Rate limiting middleware
+ */
+export function createRateLimit(opts?: { redisUrl?: string; pgUrl?: string }) {
+  // Return the advanced rate limit middleware
+  // Skip rate limiting in development environment by default
+  return rateLimitMiddleware({
+    skip: skipInDevelopment,
+  });
 }
