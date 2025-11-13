@@ -138,6 +138,8 @@ model Bucket {
   sharedTeams        BucketTeamAccess[] // Teams that can access this bucket
 
   @@unique([ownerTeamId, bucketName, provider])
+  @@index([ownerTeamId]) // Query: Get all buckets for a team
+  @@index([status]) // Query: Find unhealthy/pending buckets
 }
 
 // New model for bucket sharing across teams
@@ -178,9 +180,11 @@ model Project {
   uploads     Upload[]
   usageD      UsageDaily[]
   versions    Version[]
-  
+
   @@index([teamId])
   @@index([bucketId])
+  @@index([ownerId]) // Query: Get all projects for a user
+  @@index([createdAt]) // Query: Sort projects by creation date
 }
 
 model File {
@@ -202,6 +206,9 @@ model File {
   @@unique([projectId, tenantId, path, version])
   @@index([projectId, tenantId])
   @@index([projectId, version])
+  @@index([projectId, uploadedAt]) // Query: Get recent files for a project
+  @@index([projectId, mimeType]) // Query: Filter files by type (images, videos, etc.)
+  @@index([lastAccessed]) // Query: Find stale files for cleanup
 }
 
 model Transform {
@@ -221,6 +228,8 @@ model Transform {
 
   @@index([projectId, status])
   @@index([fileId])
+  @@index([projectId, createdAt]) // Query: Get recent transforms for a project
+  @@index([status, createdAt]) // Query: Find pending/failed transforms by date
 }
 
 model Upload {
@@ -230,6 +239,10 @@ model Upload {
   status    String
   createdAt DateTime @default(now())
   project   Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId]) // Query: Get all uploads for a project
+  @@index([projectId, status]) // Query: Filter uploads by status
+  @@index([projectId, createdAt]) // Query: Get recent uploads for a project
 }
 
 model Tenant {
@@ -271,6 +284,7 @@ model Token {
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([keyHash]) // Query: Token lookup during authentication
 }
 
 model Version {
@@ -324,6 +338,8 @@ model AuditLog {
   @@index([projectId, action])
   @@index([projectId, createdAt])
   @@index([userId, createdAt])
+  @@index([action]) // Query: Filter all audit logs by action type
+  @@index([resource]) // Query: Filter all audit logs by resource type
 }
 
 model User {
