@@ -68,7 +68,6 @@ export async function validateApiKey(
     req.apiKey = {
       id: keyRecord.id,
       projectId: keyRecord.projectId,
-      label: keyRecord.label ?? undefined,
       permissions: ["read", "write"], // Default permissions for now
     };
 

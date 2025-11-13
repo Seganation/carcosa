@@ -9,6 +9,7 @@ import { getLogger } from "./config/logger.js";
 import rateLimit from "./middlewares/rate-limit.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler.js";
 import routes from "./routes/index.js";
+import { realtimeSystem } from "./routes/carcosa-file-router.routes.js";
 
 const parsed = Env.safeParse(process.env);
 if (!parsed.success) {
@@ -20,8 +21,9 @@ const env = parsed.data;
 const app = express();
 const server = createServer(app);
 
-// Note: Real-time WebSocket system is initialized in carcosa-file-router.routes.ts
-// It's created per-route to allow fine-grained control over upload progress tracking
+// Initialize real-time WebSocket system
+realtimeSystem.initialize(server);
+console.log("✅ [realtime] WebSocket system attached to HTTP server");
 
 app.use(
   cors({

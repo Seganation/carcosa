@@ -25,3 +25,4 @@ declare global {
 
 // Re-export for convenience
 export type AuthRequest = Request;
+export type AuthenticatedRequest = Request;
