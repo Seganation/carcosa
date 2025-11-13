@@ -28,15 +28,14 @@ class ByteCounter extends NodeTransform {
   }
 }
 
-export async function handle(req: Request, res: Response) {
+export const handle = asyncHandler(async (req: Request, res: Response) => {
   const startTime = Date.now();
 
-  try {
-    const version = Number((req.params as any).version);
-    const projectId = (req.params as any).projectId as string;
-    const pathParam = (req.params as any).path as string;
+  const version = Number((req.params as any).version);
+  const projectId = (req.params as any).projectId as string;
+  const pathParam = (req.params as any).path as string;
 
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundError('Project', ErrorCode.PROJECT_NOT_FOUND);
     }
@@ -211,23 +210,9 @@ export async function handle(req: Request, res: Response) {
       userAgent: req.get("User-Agent"),
     });
 
-    // Send the transformed image
-    return res.send(transformedBuffer);
-  } catch (error) {
-    // Re-throw if it's already an AppError
-    if (error instanceof Error && error.constructor.name.includes('Error')) {
-      throw error;
-    }
-
-    // Otherwise wrap in TransformError
-    console.error("Transform error:", error);
-    throw new TransformError(
-      'Image transformation failed',
-      ErrorCode.TRANSFORM_FAILED,
-      { originalError: error instanceof Error ? error.message : String(error) }
-    );
-  }
-}
+  // Send the transformed image
+  return res.send(transformedBuffer);
+});
 
 // Get transforms for a project with pagination and filtering
 export async function getProjectTransforms(req: Request, res: Response) {

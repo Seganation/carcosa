@@ -10,6 +10,13 @@ import {
 } from '@carcosa/file-router';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import type { AuthenticatedRequest } from '../types/global.js';
+import {
+  validate,
+  uploadInitSchema,
+  uploadCompleteSchema,
+  deleteFileSchema,
+} from '../utils/validation.js';
+import { asyncHandler } from '../utils/errors.js';
 
 // ============================================================================
 // CARCOSA FILE-ROUTER: Full UploadThing-Competitive Upload System
@@ -386,196 +393,164 @@ router.get('/health', (_req: Request, res: Response) => {
 });
 
 // Upload initialization endpoint
-router.post('/init', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const authReq = req as AuthenticatedRequest;
-    const { fileName, fileSize, contentType, routeName } = req.body;
+router.post('/init', authMiddleware, validate(uploadInitSchema), asyncHandler(async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const { fileName, fileSize, contentType, routeName } = req.body;
 
-    if (!fileName || !fileSize) {
-      return res.status(400).json({
-        error: 'fileName and fileSize are required',
-        code: 'MISSING_PARAMS'
-      });
-    }
+  // Get the upload route configuration
+  const route = uploadRouter.getRoute(routeName || 'imageUpload');
+  if (!route) {
+    return res.status(400).json({
+      error: 'Invalid route name',
+      code: 'INVALID_ROUTE',
+      availableRoutes: Array.from(uploadRouter.getRoutes().keys())
+    });
+  }
 
-    // Get the upload route configuration
-    const route = uploadRouter.getRoute(routeName || 'imageUpload');
-    if (!route) {
-      return res.status(400).json({
-        error: 'Invalid route name',
-        code: 'INVALID_ROUTE',
-        availableRoutes: Array.from(uploadRouter.getRoutes().keys())
-      });
-    }
+  // Generate presigned upload URL using storage manager
+  if (!authReq.user) {
+    return res.status(401).json({ error: 'User not authenticated', code: 'UNAUTHORIZED' });
+  }
 
-    // Generate presigned upload URL using storage manager
-    if (!authReq.user) {
-      return res.status(401).json({ error: 'User not authenticated', code: 'UNAUTHORIZED' });
-    }
+  const metadata = {
+    organizationId: authReq.organizationId || '',
+    projectId: req.headers['x-project-id'] as string || '',
+    userId: authReq.user.id,
+    fileType: contentType,
+  };
 
-    const metadata = {
-      organizationId: authReq.organizationId || '',
-      projectId: req.headers['x-project-id'] as string || '',
+  const presignedUrl = await storageManager.generatePresignedUploadUrl(
+    fileName,
+    fileSize,
+    metadata
+  );
+
+  // Generate upload ID for tracking
+  const uploadId = `upload_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+  // Emit real-time event for upload initialization
+  realtimeSystem.emitToUser(authReq.user.id, 'upload.progress', {
+    uploadId,
+    fileName,
+    fileSize,
+    progress: 0,
+    status: 'initialized',
+  });
+
+  realtimeSystem.emitToProject(metadata.projectId, 'upload.progress', {
+    uploadId,
+    fileName,
+    userId: authReq.user.id,
+    progress: 0,
+    status: 'initialized',
+  });
+
+  // Create audit log entry for upload initialization
+  await prisma.auditLog.create({
+    data: {
+      projectId: metadata.projectId,
       userId: authReq.user.id,
-      fileType: contentType,
-    };
+      action: 'upload.initialized',
+      resource: 'file',
+      details: {
+        uploadId,
+        fileName,
+        fileSize,
+        contentType,
+        routeName: routeName || 'imageUpload',
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    },
+  });
 
-    const presignedUrl = await storageManager.generatePresignedUploadUrl(
-      fileName,
-      fileSize,
-      metadata
-    );
+  res.json({
+    uploadId,
+    fileName,
+    fileSize,
+    contentType,
+    presignedUrl: presignedUrl.url,
+    fields: presignedUrl.fields,
+    status: 'initialized',
+    expiresAt: presignedUrl.expiresAt,
+    message: 'Upload initialized successfully',
+  });
+}));
 
-    // Generate upload ID for tracking
-    const uploadId = `upload_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+// Upload completion endpoint
+router.post('/complete', authMiddleware, validate(uploadCompleteSchema), asyncHandler(async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const { uploadId, fileKey, routeName } = req.body;
 
-    // Emit real-time event for upload initialization
-    realtimeSystem.emitToUser(authReq.user.id, 'upload.progress', {
-      uploadId,
-      fileName,
-      fileSize,
-      progress: 0,
-      status: 'initialized',
+  // Get the upload route configuration
+  const route = uploadRouter.getRoute(routeName || 'imageUpload');
+  if (!route) {
+    return res.status(400).json({
+      error: 'Invalid route name',
+      code: 'INVALID_ROUTE'
+    });
+  }
+
+  // Call the upload complete handler
+  if (route.onUploadComplete && authReq.user) {
+    const result = await route.onUploadComplete({
+      metadata: {
+        userId: authReq.user.id,
+        organizationId: authReq.organizationId || '',
+        projectId: req.headers['x-project-id'] as string || '',
+      },
+      file: {
+        key: fileKey || uploadId,
+        name: fileKey || uploadId,
+        size: 0, // Would get from storage
+        type: 'unknown',
+        uploadedAt: new Date(),
+        url: `https://storage/${fileKey}`,
+      },
     });
 
-    realtimeSystem.emitToProject(metadata.projectId, 'upload.progress', {
+    console.log('[file-router] Upload complete handler result:', result);
+
+    // Emit real-time completion events
+    realtimeSystem.emitToUser(authReq.user.id, 'upload.completed', {
       uploadId,
-      fileName,
-      userId: authReq.user.id,
-      progress: 0,
-      status: 'initialized',
+      fileKey,
+      result,
     });
 
-    // Create audit log entry for upload initialization
+    realtimeSystem.emitToProject(req.headers['x-project-id'] as string, 'upload.completed', {
+      uploadId,
+      fileKey,
+      userId: authReq.user.id,
+    });
+
+    // Create audit log for completion
     await prisma.auditLog.create({
       data: {
-        projectId: metadata.projectId,
+        projectId: req.headers['x-project-id'] as string,
         userId: authReq.user.id,
-        action: 'upload.initialized',
+        action: 'upload.completed',
         resource: 'file',
         details: {
           uploadId,
-          fileName,
-          fileSize,
-          contentType,
+          fileKey,
           routeName: routeName || 'imageUpload',
+          result,
         },
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       },
     });
-
-    res.json({
-      uploadId,
-      fileName,
-      fileSize,
-      contentType,
-      presignedUrl: presignedUrl.url,
-      fields: presignedUrl.fields,
-      status: 'initialized',
-      expiresAt: presignedUrl.expiresAt,
-      message: 'Upload initialized successfully',
-    });
-  } catch (error) {
-    console.error('[file-router] Upload init error:', error);
-    res.status(500).json({
-      error: 'Upload initialization failed',
-      message: (error as Error).message,
-      code: 'INIT_FAILED'
-    });
   }
-});
 
-// Upload completion endpoint
-router.post('/complete', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const authReq = req as AuthenticatedRequest;
-    const { uploadId, fileKey, routeName } = req.body;
-
-    if (!uploadId) {
-      return res.status(400).json({
-        error: 'uploadId is required',
-        code: 'MISSING_PARAMS'
-      });
-    }
-
-    // Get the upload route configuration
-    const route = uploadRouter.getRoute(routeName || 'imageUpload');
-    if (!route) {
-      return res.status(400).json({
-        error: 'Invalid route name',
-        code: 'INVALID_ROUTE'
-      });
-    }
-
-    // Call the upload complete handler
-    if (route.onUploadComplete && authReq.user) {
-      const result = await route.onUploadComplete({
-        metadata: {
-          userId: authReq.user.id,
-          organizationId: authReq.organizationId || '',
-          projectId: req.headers['x-project-id'] as string || '',
-        },
-        file: {
-          key: fileKey || uploadId,
-          name: fileKey || uploadId,
-          size: 0, // Would get from storage
-          type: 'unknown',
-          uploadedAt: new Date(),
-          url: `https://storage/${fileKey}`,
-        },
-      });
-
-      console.log('[file-router] Upload complete handler result:', result);
-
-      // Emit real-time completion events
-      realtimeSystem.emitToUser(authReq.user.id, 'upload.completed', {
-        uploadId,
-        fileKey,
-        result,
-      });
-
-      realtimeSystem.emitToProject(req.headers['x-project-id'] as string, 'upload.completed', {
-        uploadId,
-        fileKey,
-        userId: authReq.user.id,
-      });
-
-      // Create audit log for completion
-      await prisma.auditLog.create({
-        data: {
-          projectId: req.headers['x-project-id'] as string,
-          userId: authReq.user.id,
-          action: 'upload.completed',
-          resource: 'file',
-          details: {
-            uploadId,
-            fileKey,
-            routeName: routeName || 'imageUpload',
-            result,
-          },
-          ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
-        },
-      });
-    }
-
-    res.json({
-      uploadId,
-      fileKey,
-      status: 'completed',
-      message: 'Upload completed successfully',
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('[file-router] Upload complete error:', error);
-    res.status(500).json({
-      error: 'Upload completion failed',
-      message: (error as Error).message,
-      code: 'COMPLETE_FAILED'
-    });
-  }
-});
+  res.json({
+    uploadId,
+    fileKey,
+    status: 'completed',
+    message: 'Upload completed successfully',
+    timestamp: new Date().toISOString(),
+  });
+}));
 
 // Real-time WebSocket endpoint info
 router.get('/realtime', (_req: Request, res: Response) => {
@@ -620,124 +595,115 @@ router.get('/storage/stats', authMiddleware, async (req: Request, res: Response)
 });
 
 // File serving endpoint - authenticated file access with signed URLs
-router.get('/files/:fileId', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const authReq = req as AuthenticatedRequest;
-    const { fileId } = req.params;
+router.get('/files/:fileId', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const { fileId } = req.params;
 
-    if (!authReq.user) {
-      return res.status(401).json({ error: 'User not authenticated', code: 'UNAUTHORIZED' });
-    }
+  if (!authReq.user) {
+    return res.status(401).json({ error: 'User not authenticated', code: 'UNAUTHORIZED' });
+  }
 
-    // 1. Fetch file from database
-    const fileRecord = await prisma.file.findUnique({
-      where: { id: fileId },
-      include: { project: true },
-    });
+  // 1. Fetch file from database
+  const fileRecord = await prisma.file.findUnique({
+    where: { id: fileId },
+    include: { project: true },
+  });
 
-    if (!fileRecord) {
-      return res.status(404).json({
-        error: 'File not found',
-        code: 'FILE_NOT_FOUND',
-      });
-    }
-
-    // 2. Validate user has access to the project
-    // Check if user is either the project owner or a member of the project's team
-    const isOwner = fileRecord.project.ownerId === authReq.user.id;
-
-    let isTeamMember = false;
-    if (fileRecord.project.teamId) {
-      const teamMember = await prisma.teamMember.findFirst({
-        where: {
-          teamId: fileRecord.project.teamId,
-          userId: authReq.user.id,
-        },
-      });
-      isTeamMember = !!teamMember;
-    }
-
-    if (!isOwner && !isTeamMember) {
-      return res.status(403).json({
-        error: 'Access denied to this file',
-        code: 'ACCESS_DENIED',
-      });
-    }
-
-    // 3. Generate signed URL from storage provider (valid for 1 hour)
-    // Get the default provider adapter
-    const defaultProvider = storageManager.getDefaultProvider();
-    if (!defaultProvider) {
-      return res.status(500).json({
-        error: 'No storage provider available',
-        code: 'NO_STORAGE_PROVIDER',
-      });
-    }
-
-    const adapter = storageManager.getAllProviders().get(defaultProvider);
-    if (!adapter) {
-      return res.status(500).json({
-        error: 'Storage provider not found',
-        code: 'PROVIDER_NOT_FOUND',
-      });
-    }
-
-    const signedUrl = await adapter.generatePresignedDownloadUrl(
-      fileRecord.path,
-      { expiresIn: 3600 } // 1 hour expiry
-    );
-
-    // 4. Create audit log for file access
-    await prisma.auditLog.create({
-      data: {
-        projectId: fileRecord.projectId,
-        userId: authReq.user.id,
-        action: 'file.accessed',
-        resource: 'file',
-        details: {
-          fileId: fileRecord.id,
-          filename: fileRecord.filename,
-          path: fileRecord.path,
-          accessMethod: 'signed_url',
-        },
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      },
-    });
-
-    // 5. Update last accessed timestamp
-    await prisma.file.update({
-      where: { id: fileId },
-      data: { lastAccessed: new Date() },
-    });
-
-    // 6. Respond with signed URL or redirect
-    const shouldRedirect = req.query.redirect === 'true';
-
-    if (shouldRedirect) {
-      // Direct redirect to signed URL
-      return res.redirect(302, signedUrl.url);
-    } else {
-      // Return URL as JSON
-      return res.json({
-        fileId: fileRecord.id,
-        filename: fileRecord.filename,
-        size: fileRecord.size.toString(),
-        mimeType: fileRecord.mimeType,
-        url: signedUrl.url,
-        expiresAt: signedUrl.expiresAt,
-        message: 'Signed URL generated successfully',
-      });
-    }
-  } catch (error) {
-    console.error('[file-router] File serving error:', error);
-    res.status(500).json({
-      error: 'File serving failed',
-      message: (error as Error).message,
-      code: 'FILE_SERVING_ERROR',
+  if (!fileRecord) {
+    return res.status(404).json({
+      error: 'File not found',
+      code: 'FILE_NOT_FOUND',
     });
   }
-});
+
+  // 2. Validate user has access to the project
+  // Check if user is either the project owner or a member of the project's team
+  const isOwner = fileRecord.project.ownerId === authReq.user.id;
+
+  let isTeamMember = false;
+  if (fileRecord.project.teamId) {
+    const teamMember = await prisma.teamMember.findFirst({
+      where: {
+        teamId: fileRecord.project.teamId,
+        userId: authReq.user.id,
+      },
+    });
+    isTeamMember = !!teamMember;
+  }
+
+  if (!isOwner && !isTeamMember) {
+    return res.status(403).json({
+      error: 'Access denied to this file',
+      code: 'ACCESS_DENIED',
+    });
+  }
+
+  // 3. Generate signed URL from storage provider (valid for 1 hour)
+  // Get the default provider adapter
+  const defaultProvider = storageManager.getDefaultProvider();
+  if (!defaultProvider) {
+    return res.status(500).json({
+      error: 'No storage provider available',
+      code: 'NO_STORAGE_PROVIDER',
+    });
+  }
+
+  const adapter = storageManager.getAllProviders().get(defaultProvider);
+  if (!adapter) {
+    return res.status(500).json({
+      error: 'Storage provider not found',
+      code: 'PROVIDER_NOT_FOUND',
+    });
+  }
+
+  const signedUrl = await adapter.generatePresignedDownloadUrl(
+    fileRecord.path,
+    { expiresIn: 3600 } // 1 hour expiry
+  );
+
+  // 4. Create audit log for file access
+  await prisma.auditLog.create({
+    data: {
+      projectId: fileRecord.projectId,
+      userId: authReq.user.id,
+      action: 'file.accessed',
+      resource: 'file',
+      details: {
+        fileId: fileRecord.id,
+        filename: fileRecord.filename,
+        path: fileRecord.path,
+        accessMethod: 'signed_url',
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    },
+  });
+
+  // 5. Update last accessed timestamp
+  await prisma.file.update({
+    where: { id: fileId },
+    data: { lastAccessed: new Date() },
+  });
+
+  // 6. Respond with signed URL or redirect
+  const shouldRedirect = req.query.redirect === 'true';
+
+  if (shouldRedirect) {
+    // Direct redirect to signed URL
+    return res.redirect(302, signedUrl.url);
+  } else {
+    // Return URL as JSON
+    return res.json({
+      fileId: fileRecord.id,
+      filename: fileRecord.filename,
+      size: fileRecord.size.toString(),
+      mimeType: fileRecord.mimeType,
+      url: signedUrl.url,
+      expiresAt: signedUrl.expiresAt,
+      message: 'Signed URL generated successfully',
+    });
+  }
+}));
 
 export default router;
 
