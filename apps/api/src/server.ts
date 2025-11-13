@@ -4,11 +4,15 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import fileUpload from "express-fileupload";
 import { createServer } from "http";
+import swaggerUi from "swagger-ui-express";
 import Env from "./config/env.js";
 import { getLogger } from "./config/logger.js";
 import rateLimit from "./middlewares/rate-limit.js";
-import { errorHandler, notFoundHandler } from "./middlewares/error-handler.js";
+import { errorHandler, notFoundHandler } from "./utils/errors.js";
 import routes from "./routes/index.js";
+import { realtimeSystem } from "./routes/carcosa-file-router.routes.js";
+import { getRedisClient } from "./utils/redis.js";
+import { swaggerSpec } from "./config/swagger.js";
 
 const parsed = Env.safeParse(process.env);
 if (!parsed.success) {
@@ -20,8 +24,17 @@ const env = parsed.data;
 const app = express();
 const server = createServer(app);
 
-// Note: Real-time WebSocket system is initialized in carcosa-file-router.routes.ts
-// It's created per-route to allow fine-grained control over upload progress tracking
+// Initialize Redis client for caching
+const redisClient = getRedisClient();
+if (redisClient) {
+  console.log("✅ [redis] Cache system initialized");
+} else {
+  console.log("⚠️  [redis] Cache system disabled (Redis not configured)");
+}
+
+// Initialize real-time WebSocket system
+realtimeSystem.initialize(server);
+console.log("✅ [realtime] WebSocket system attached to HTTP server");
 
 app.use(
   cors({
@@ -54,6 +67,25 @@ app.get("/api/v1/realtime/health", (_req, res) => {
     websocket: { status: "active" },
     timestamp: new Date().toISOString()
   });
+});
+
+// API Documentation with Swagger UI
+app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "Carcosa API Documentation",
+  customfavIcon: "https://swagger.io/favicon-32x32.png",
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    tryItOutEnabled: true,
+  },
+}));
+
+// OpenAPI spec JSON endpoint
+app.get("/api/v1/docs.json", (_req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
 });
 
 app.use("/api/v1", routes);

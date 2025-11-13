@@ -16,7 +16,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const { login } = useAuth();
+  const { register: registerUser } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,33 +24,11 @@ export default function RegisterPage() {
     setError("");
 
     try {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const res = await fetch(`${baseUrl}/api/v1/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        // Auto-login after successful registration
-        try {
-          await login(email, password);
-          toast.success("Account created successfully! Welcome to Carcosa.");
-          router.push("/");
-        } catch (loginError) {
-          toast.success("Account created! Please log in.");
-          router.push("/auth/login");
-        }
-      } else {
-        const errorMessage = data.error || "Registration failed";
-        setError(errorMessage);
-        toast.error(errorMessage);
-      }
+      await registerUser(email, password, name || undefined);
+      toast.success("Account created successfully! Welcome to Carcosa.");
+      router.push("/dashboard");
     } catch (err: any) {
-      const errorMessage = "Network error. Please try again.";
+      const errorMessage = err.message || "Registration failed";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

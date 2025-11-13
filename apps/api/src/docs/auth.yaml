@@ -1,0 +1,237 @@
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: |
+        Create a new user account with email and password.
+
+        **Password Requirements:**
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one number
+        - At least one special character
+
+        **Response:**
+        Returns a JWT token in both the response body and as an HTTP-only cookie.
+        The token expires in 7 days.
+      operationId: register
+      security: [] # Public endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                  description: Valid email address
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: MySecureP@ss123
+                  description: Strong password meeting requirements
+                name:
+                  type: string
+                  example: John Doe
+                  description: Optional user display name
+            examples:
+              basic:
+                value:
+                  email: john.doe@example.com
+                  password: SecurePassword123!
+                  name: John Doe
+              minimal:
+                value:
+                  email: jane@example.com
+                  password: MyP@ssw0rd!
+      responses:
+        '201':
+          description: User registered successfully
+          headers:
+            Set-Cookie:
+              description: JWT token in HTTP-only cookie
+              schema:
+                type: string
+                example: carcosa_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; Path=/; HttpOnly; Max-Age=604800
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                user:
+                  id: "123e4567-e89b-12d3-a456-426614174000"
+                  email: "john.doe@example.com"
+                  name: "John Doe"
+                  createdAt: "2025-11-13T10:30:00.000Z"
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjNlNDU2Ny1lODliLTEyZDMtYTQ1Ni00MjY2MTQxNzQwMDAiLCJlbWFpbCI6ImpvaG4uZG9lQGV4YW1wbGUuY29tIiwiaWF0IjoxNzMxNDk5ODAwLCJleHAiOjE3MzIxMDQ2MDB9.abc123def456"
+                message: "User registered successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: "AUTH_004"
+                  message: "Email already exists"
+                  statusCode: 409
+                  timestamp: "2025-11-13T10:30:00.000Z"
+                  path: "/api/v1/auth/register"
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login to existing account
+      description: |
+        Authenticate with email and password to receive a JWT token.
+
+        **Authentication:**
+        - Token is returned in response body and HTTP-only cookie
+        - Token expires in 7 days
+        - Use token in `Authorization: Bearer <token>` header for protected endpoints
+
+        **Rate Limiting:**
+        - Failed login attempts are rate-limited to prevent brute-force attacks
+        - Max 5 failed attempts per hour per IP address
+      operationId: login
+      security: [] # Public endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: MySecureP@ss123
+            examples:
+              valid:
+                value:
+                  email: john.doe@example.com
+                  password: SecurePassword123!
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: JWT token in HTTP-only cookie
+              schema:
+                type: string
+                example: carcosa_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; Path=/; HttpOnly; Max-Age=604800
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                user:
+                  id: "123e4567-e89b-12d3-a456-426614174000"
+                  email: "john.doe@example.com"
+                  name: "John Doe"
+                  createdAt: "2025-11-13T10:30:00.000Z"
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                message: "Login successful"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: "AUTH_003"
+                  message: "Invalid email or password"
+                  statusCode: 401
+                  timestamp: "2025-11-13T10:30:00.000Z"
+                  path: "/api/v1/auth/login"
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout current user
+      description: |
+        Logout the current user by clearing the authentication cookie.
+
+        **Note:** This endpoint doesn't invalidate the JWT token itself,
+        it only clears the cookie. The token will remain valid until expiration.
+      operationId: logout
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out successfully
+              example:
+                message: "Logged out successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user profile
+      description: |
+        Retrieve the profile information of the currently authenticated user.
+
+        **Authentication Required:**
+        - JWT token (Cookie or Bearer)
+        - API key (x-api-key header)
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+              example:
+                user:
+                  id: "123e4567-e89b-12d3-a456-426614174000"
+                  email: "john.doe@example.com"
+                  name: "John Doe"
+                  createdAt: "2025-11-13T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'

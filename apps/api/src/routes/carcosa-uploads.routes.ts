@@ -1,11 +1,14 @@
 /**
  * 🚀 CARCOSA FILE-ROUTER ROUTES
- * 
+ *
  * Advanced upload routes using the @carcosa/file-router package
  */
 
 import { Router } from "express";
-import { 
+import { validateApiKey } from "../middlewares/api-key.middleware.js";
+import { requirePermission } from "../middlewares/permissions.middleware.js";
+import { Permission } from "../types/permissions.js";
+import {
   handleImageUpload,
   handleDocumentUpload,
   handleVideoUpload,
@@ -16,17 +19,45 @@ import {
 
 const router = Router();
 
-// Health check for Carcosa file-router
+// Health check for Carcosa file-router (public)
 router.get("/health", carcosaHealth);
 
-// Typed upload routes
-router.post("/images", handleImageUpload);
-router.post("/documents", handleDocumentUpload);
-router.post("/videos", handleVideoUpload);
+// Typed upload routes (require API key and upload permissions)
+router.post(
+  "/images",
+  validateApiKey,
+  requirePermission(Permission.UPLOAD_FILES),
+  handleImageUpload
+);
 
-// Upload flow endpoints
-router.post("/init", initCarcosaUpload);
-router.post("/complete", completeCarcosaUpload);
+router.post(
+  "/documents",
+  validateApiKey,
+  requirePermission(Permission.UPLOAD_FILES),
+  handleDocumentUpload
+);
+
+router.post(
+  "/videos",
+  validateApiKey,
+  requirePermission(Permission.UPLOAD_FILES),
+  handleVideoUpload
+);
+
+// Upload flow endpoints (require init and complete permissions)
+router.post(
+  "/init",
+  validateApiKey,
+  requirePermission(Permission.UPLOAD_INIT),
+  initCarcosaUpload
+);
+
+router.post(
+  "/complete",
+  validateApiKey,
+  requirePermission(Permission.UPLOAD_COMPLETE),
+  completeCarcosaUpload
+);
 
 // Upload status endpoint
 router.get("/status/:uploadId", async (req, res) => {

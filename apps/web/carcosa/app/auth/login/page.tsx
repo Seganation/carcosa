@@ -25,7 +25,15 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success("Welcome back!");
-      router.push("/");
+
+      // Redirect to saved path or dashboard
+      const redirectPath = sessionStorage.getItem("carcosa_redirect_after_login");
+      if (redirectPath) {
+        sessionStorage.removeItem("carcosa_redirect_after_login");
+        router.push(redirectPath);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       const errorMessage = err.message || "Login failed";
       setError(errorMessage);

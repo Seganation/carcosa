@@ -63,13 +63,28 @@ export async function validateApiKey(
       });
     }
 
+    // Parse permissions from JSON if needed
+    let permissions: string[];
+    if (typeof keyRecord.permissions === 'string') {
+      try {
+        permissions = JSON.parse(keyRecord.permissions);
+      } catch {
+        permissions = ['read', 'write']; // Fallback to default
+      }
+    } else if (Array.isArray(keyRecord.permissions)) {
+      // Ensure permissions is a string array (Prisma JsonArray compatibility)
+      permissions = keyRecord.permissions.filter((p): p is string => typeof p === 'string');
+    } else {
+      permissions = ['read', 'write']; // Fallback to default
+    }
+
     // Set API key context on request
     // @ts-ignore - Global types not fully recognized yet
     req.apiKey = {
       id: keyRecord.id,
       projectId: keyRecord.projectId,
-      label: keyRecord.label ?? undefined,
-      permissions: ["read", "write"], // Default permissions for now
+      permissions,
+      label: keyRecord.label || undefined,
     };
 
     // Set project context

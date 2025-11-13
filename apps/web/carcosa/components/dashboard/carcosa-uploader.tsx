@@ -12,18 +12,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Upload, 
-  Image, 
-  FileText, 
-  Video, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Upload,
+  Image,
+  FileText,
+  Video,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Loader2,
   X,
   Eye
 } from 'lucide-react';
+import { useAuth } from '../../contexts/auth-context';
+import { toast } from 'react-hot-toast';
 
 interface UploadFile {
   id: string;
@@ -62,6 +64,9 @@ export function CarcosaUploader({
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
   const getTypeConfig = () => {
     switch (uploadType) {
@@ -163,61 +168,125 @@ export function CarcosaUploader({
     setFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const simulateUpload = async (uploadFile: UploadFile) => {
-    // Simulate upload progress
+  const realUpload = async (uploadFile: UploadFile) => {
     const updateProgress = (progress: number) => {
-      setFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
+      setFiles(prev => prev.map(f =>
+        f.id === uploadFile.id
           ? { ...f, progress, status: 'uploading' as const }
           : f
       ));
     };
 
     try {
-      // Simulate chunked upload progress
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        updateProgress(i);
+      // Step 1: Initialize upload - get presigned URL from API
+      const initResponse = await fetch(`${apiUrl}/api/v1/carcosa/init`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          fileName: uploadFile.file.name,
+          fileSize: uploadFile.file.size,
+          contentType: uploadFile.file.type,
+          routeName: `${uploadType}Upload`, // imageUpload, videoUpload, documentUpload
+        }),
+      });
+
+      if (!initResponse.ok) {
+        const error = await initResponse.json();
+        throw new Error(error.error || 'Upload initialization failed');
       }
 
-      // Simulate successful completion with Carcosa features
-      const mockResponse = {
-        success: true,
-        fileId: `carcosa_${uploadFile.id}`,
-        url: `https://cdn.carcosa.dev/${uploadFile.file.name}`,
-        transforms: uploadType === 'images' ? {
-          thumbnail: `https://cdn.carcosa.dev/${uploadFile.file.name}?w=150&h=150&fit=cover`,
-          medium: `https://cdn.carcosa.dev/${uploadFile.file.name}?w=500&h=500&fit=inside`,
-          large: `https://cdn.carcosa.dev/${uploadFile.file.name}?w=1200&h=1200&fit=inside`
-        } : undefined,
-        metadata: {
-          uploadedAt: new Date().toISOString(),
-          service: 'carcosa-file-router'
-        }
-      };
+      const initData = await initResponse.json();
+      updateProgress(10);
 
-      setFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
-          ? { 
-              ...f, 
-              status: 'completed', 
+      // Step 2: Upload file directly to storage using presigned URL
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = ((e.loaded / e.total) * 80) + 10; // 10-90%
+          updateProgress(Math.round(percentComplete));
+        }
+      });
+
+      // Upload to presigned URL
+      await new Promise<void>((resolve, reject) => {
+        xhr.open('PUT', initData.presignedUrl);
+        xhr.setRequestHeader('Content-Type', uploadFile.file.type);
+
+        xhr.onload = () => {
+          if (xhr.status === 200 || xhr.status === 204) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.send(uploadFile.file);
+      });
+
+      updateProgress(90);
+
+      // Step 3: Complete upload - notify API
+      const completeResponse = await fetch(`${apiUrl}/api/v1/carcosa/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          uploadId: initData.uploadId,
+          fileKey: uploadFile.file.name,
+          routeName: `${uploadType}Upload`,
+        }),
+      });
+
+      if (!completeResponse.ok) {
+        const error = await completeResponse.json();
+        throw new Error(error.error || 'Upload completion failed');
+      }
+
+      const completeData = await completeResponse.json();
+      updateProgress(100);
+
+      // Generate transform URLs for images
+      const transforms = uploadType === 'images' ? {
+        thumbnail: `${apiUrl}/api/v1/transform/${initData.projectId || 'default'}/${uploadFile.file.name}?w=150&h=150&fit=cover&q=80`,
+        medium: `${apiUrl}/api/v1/transform/${initData.projectId || 'default'}/${uploadFile.file.name}?w=500&h=500&fit=inside&q=85`,
+        large: `${apiUrl}/api/v1/transform/${initData.projectId || 'default'}/${uploadFile.file.name}?w=1200&h=1200&fit=inside&q=90`,
+      } : undefined;
+
+      // Mark as completed
+      setFiles(prev => prev.map(f =>
+        f.id === uploadFile.id
+          ? {
+              ...f,
+              status: 'completed',
               progress: 100,
-              url: mockResponse.url,
-              transforms: mockResponse.transforms
+              url: `${apiUrl}/api/v1/carcosa/files/${completeData.fileId || initData.uploadId}`,
+              transforms,
             }
           : f
       ));
 
+      toast.success(`${uploadFile.file.name} uploaded successfully!`);
+
     } catch (error) {
-      setFiles(prev => prev.map(f => 
-        f.id === uploadFile.id 
-          ? { 
-              ...f, 
-              status: 'error', 
+      console.error('Upload error:', error);
+      setFiles(prev => prev.map(f =>
+        f.id === uploadFile.id
+          ? {
+              ...f,
+              status: 'error',
               error: error instanceof Error ? error.message : 'Upload failed'
             }
           : f
       ));
+      toast.error(`Failed to upload ${uploadFile.file.name}`);
     }
   };
 
@@ -225,16 +294,27 @@ export function CarcosaUploader({
     const pendingFiles = files.filter(f => f.status === 'pending');
     if (pendingFiles.length === 0) return;
 
+    if (!user) {
+      toast.error('Please log in to upload files');
+      onUploadError?.('User not authenticated');
+      return;
+    }
+
     setIsUploading(true);
 
     try {
-      // Upload files concurrently
-      await Promise.all(pendingFiles.map(simulateUpload));
-      
+      // Upload files concurrently (max 3 at a time to avoid overwhelming)
+      const chunkSize = 3;
+      for (let i = 0; i < pendingFiles.length; i += chunkSize) {
+        const chunk = pendingFiles.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(realUpload));
+      }
+
       const completedFiles = files.filter(f => f.status === 'completed');
       onUploadComplete?.(completedFiles);
     } catch (error) {
-      onUploadError?.(error instanceof Error ? error.message : 'Upload failed');
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      onUploadError?.(errorMessage);
     } finally {
       setIsUploading(false);
     }
