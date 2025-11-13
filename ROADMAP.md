@@ -123,11 +123,13 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
 **Prerequisites**: Week 1 Complete ✅ (API builds, auth works)
 
 #### Phase 2A: File Upload Integration & Testing (Days 4-5)
-- [ ] **Task 2.1**: Re-enable file-router routes
-  - Fix API compatibility issues
-  - Test route registration
-  - Verify middleware integration
-  - Update imports and dependencies
+- [🔄] **Task 2.1**: Re-enable file-router routes **50% COMPLETE (Session 5)**
+  - ✅ Fixed API compatibility issues (simplified implementation)
+  - ✅ Test route registration (routes enabled in main router)
+  - ⏸️ Verify middleware integration (simplified - full integration pending)
+  - ✅ Update imports and dependencies (cleaned up)
+  - 📋 TODO: Complete full file-router integration (StorageManager, RealtimeSystem, Upload Router)
+  - **Status**: Routes working with placeholders, advanced features in Week 2
 
 - [ ] **Task 2.2**: Set up local testing environment
   - Start Docker Compose (Postgres, Redis, MinIO)
