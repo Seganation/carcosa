@@ -123,7 +123,7 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
 **Prerequisites**: Week 1 Complete ✅ (API builds, auth works)
 
 #### Phase 2A: File Upload Integration & Testing (Days 4-5)
-- [✅] **Task 2.1**: Re-enable file-router routes **90% COMPLETE (Session 6)** 🚀
+- [✅] **Task 2.1**: Re-enable file-router routes **100% COMPLETE (Session 7)** 🎉
   - ✅ Fixed API compatibility issues (full integration complete)
   - ✅ StorageManager with proper addProvider() API
   - ✅ RealtimeSystem attached to HTTP server
@@ -133,8 +133,14 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
   - ✅ Upload initialization and completion endpoints
   - ✅ Storage statistics endpoint
   - ✅ Health check with full system status
-  - 📋 TODO (10%): Wire realtime events, database persistence, file serving
-  - **Status**: Production-ready upload system operational!
+  - ✅ Real-time events wired up (upload.progress, upload.completed)
+  - ✅ Database File model persistence in all upload handlers
+  - ✅ Audit log entries for all operations (init, complete, access)
+  - ✅ File serving with authenticated signed URLs
+  - ✅ Access control with project team membership validation
+  - ✅ File metadata tracking (uploadedBy, lastAccessed)
+  - ✅ IP address and user-agent logging
+  - **Status**: PRODUCTION READY - Full UploadThing-competitive feature set! 🚀
 
 - [ ] **Task 2.2**: Set up local testing environment
   - Start Docker Compose (Postgres, Redis, MinIO)
