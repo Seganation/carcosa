@@ -2,17 +2,11 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { apiKeysService } from "../services/api-keys.service.js";
 import { requireParam, requireUserId } from "../utils/type-guards.js";
-
-// Validation schemas
-const createApiKeySchema = z.object({
-  label: z.string().optional(),
-  permissions: z.array(z.enum(["read", "write", "delete", "admin"])).default(["read", "write"]),
-});
-
-const updateApiKeySchema = z.object({
-  label: z.string().optional(),
-  permissions: z.array(z.enum(["read", "write", "delete", "admin"])).optional(),
-});
+import {
+  createApiKeyWithGroupSchema,
+  updateApiKeySchema,
+  getFinalPermissions,
+} from "../validations/api-keys.validation.js";
 
 export async function list(req: Request, res: Response) {
   try {
@@ -41,10 +35,14 @@ export async function create(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
-    const body = createApiKeySchema.parse(req.body);
+    const body = createApiKeyWithGroupSchema.parse(req.body);
+
+    // Resolve final permissions (handles both permissions array and permissionGroup)
+    const finalPermissions = getFinalPermissions(body);
 
     const result = await apiKeysService.create({
-      ...body,
+      label: body.label,
+      permissions: finalPermissions,
       projectId,
       ownerId: userId,
     });
@@ -62,9 +60,9 @@ export async function create(req: Request, res: Response) {
       return res.status(404).json({ error: "project_not_found" });
     }
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        error: "validation_failed", 
-        details: error.errors 
+      return res.status(400).json({
+        error: "validation_failed",
+        details: error.errors
       });
     }
     console.error("Create API key error:", error);

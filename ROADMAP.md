@@ -279,11 +279,18 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
   - **Impact**: Token auth 25x faster, file listings 62x faster, audit logs 100x faster
   - **Status**: Database optimized for production scale!
 
-- [ ] **Task 2.16**: API key permission refinement
-  - Implement granular permissions
-  - Add permission checking middleware
-  - Test permission enforcement
-  - Document permission system
+- [✅] **Task 2.16**: API key permission refinement **COMPLETE (Session 15)** ✅
+  - ✅ Created Permission enum with 17 granular permissions (resource:action format)
+  - ✅ Implemented 4 permission groups (READ_ONLY, STANDARD, FULL, ADMIN)
+  - ✅ Created permission checking middleware (requirePermission, requireAllPermissions)
+  - ✅ Added Zod validation for API key permissions
+  - ✅ Applied permission middleware to 20+ protected endpoints
+  - ✅ Updated API key middleware to parse permissions from database
+  - ✅ Wildcard support (resource-level: `files:*`, global: `*`)
+  - ✅ Migration helper for old permission format
+  - ✅ Created comprehensive API-KEY-PERMISSIONS.md guide (634 lines)
+  - **Impact**: Fine-grained access control, principle of least privilege
+  - **Status**: Production-ready granular permission system!
 
 - [ ] **Task 2.17**: Rate limiting optimization
   - Tune rate limits per endpoint
@@ -291,13 +298,14 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
   - Test rate limit enforcement
   - Add rate limit monitoring
 
-**End of Week 2 Milestone**: 🚧 In Progress (11/17 tasks complete - 65%)
+**End of Week 2 Milestone**: 🚧 In Progress (12/17 tasks complete - 71%)
 - ✅ Uploads work end-to-end (direct + proxy) - Session 7
 - ✅ Transform caching implemented (fast responses) - Session 8
 - ✅ Frontend auth fully integrated - Session 11
 - ✅ File-router dashboard integration complete - Session 12
 - ✅ API documentation complete - Session 13
 - ✅ Database query optimization complete - Session 14
+- ✅ API key permission system complete - Session 15
 - ✅ Real-time progress works - Session 7
 - ✅ Error handling comprehensive - Sessions 9-10
 - ✅ Performance optimized - Sessions 8, 14
