@@ -10,6 +10,15 @@ import { createAuditLog } from "./audit-logs.controller.js";
 import { recordUsage } from "./usage.controller.js";
 import { serializeBigInts } from "../utils/serialization.js";
 import { cache, generateTransformCacheKey, cacheMetrics, isRedisConnected } from "../utils/redis.js";
+import {
+  NotFoundError,
+  AuthenticationError,
+  RateLimitError,
+  TransformError,
+  ValidationError,
+  asyncHandler,
+  ErrorCode
+} from "../utils/errors.js";
 
 class ByteCounter extends NodeTransform {
   public bytes = 0;
@@ -28,7 +37,9 @@ export async function handle(req: Request, res: Response) {
     const pathParam = (req.params as any).path as string;
 
     const project = await prisma.project.findUnique({ where: { id: projectId } });
-    if (!project) return res.status(404).json({ error: "project_not_found" });
+    if (!project) {
+      throw new NotFoundError('Project', ErrorCode.PROJECT_NOT_FOUND);
+    }
 
     const w = req.query.w ? Number(req.query.w) : undefined;
     const h = req.query.h ? Number(req.query.h) : undefined;
@@ -39,7 +50,9 @@ export async function handle(req: Request, res: Response) {
     const token = projectTokenFromAuthHeader(req.headers.authorization);
     if (token) {
       const ok = await prisma.apiKey.findFirst({ where: { projectId, keyHash: hashApiKey(token), revokedAt: null } });
-      if (!ok) return res.status(401).json({ error: "invalid_api_key" });
+      if (!ok) {
+        throw new AuthenticationError('Invalid or revoked API key', ErrorCode.INVALID_API_KEY);
+      }
     }
 
     // Resolve storage path: ensure `${slug}/v{version}/...` prefix exists
@@ -105,7 +118,9 @@ export async function handle(req: Request, res: Response) {
       }
     }
 
-    if (!(await checkProjectRateLimit(projectId, "transforms"))) return res.status(429).json({ error: "rate_limited" });
+    if (!(await checkProjectRateLimit(projectId, "transforms"))) {
+      throw new RateLimitError('Transform rate limit exceeded');
+    }
     
     const adapter = await getAdapterForProject(projectId);
     const original = await adapter.getObject(resolvedPath);
@@ -199,8 +214,18 @@ export async function handle(req: Request, res: Response) {
     // Send the transformed image
     return res.send(transformedBuffer);
   } catch (error) {
+    // Re-throw if it's already an AppError
+    if (error instanceof Error && error.constructor.name.includes('Error')) {
+      throw error;
+    }
+
+    // Otherwise wrap in TransformError
     console.error("Transform error:", error);
-    return res.status(500).json({ error: "transform_failed" });
+    throw new TransformError(
+      'Image transformation failed',
+      ErrorCode.TRANSFORM_FAILED,
+      { originalError: error instanceof Error ? error.message : String(error) }
+    );
   }
 }
 
@@ -280,8 +305,9 @@ export async function getProjectTransforms(req: Request, res: Response) {
     return res.json(serializeBigInts(response));
   } catch (error) {
     console.error("❌ Error fetching project transforms:", error);
-    console.error("❌ Error stack:", error instanceof Error ? error.stack : error);
-    return res.status(500).json({ error: "Failed to fetch transforms" });
+    throw new TransformError('Failed to fetch transforms', ErrorCode.TRANSFORM_FAILED, {
+      originalError: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
@@ -293,13 +319,15 @@ export async function retryTransform(req: Request, res: Response) {
     const transform = await prisma.transform.findFirst({
       where: { id: transformId, projectId },
     });
-    
+
     if (!transform) {
-      return res.status(404).json({ error: "Transform not found" });
+      throw new NotFoundError('Transform', ErrorCode.NOT_FOUND);
     }
-    
+
     if (transform.status !== "failed") {
-      return res.status(400).json({ error: "Only failed transforms can be retried" });
+      throw new ValidationError('Only failed transforms can be retried', {
+        currentStatus: transform.status
+      });
     }
     
     // Reset transform status
@@ -327,7 +355,9 @@ export async function retryTransform(req: Request, res: Response) {
     return res.json({ message: "Transform retry initiated" });
   } catch (error) {
     console.error("Error retrying transform:", error);
-    return res.status(500).json({ error: "Failed to retry transform" });
+    throw new TransformError('Failed to retry transform', ErrorCode.TRANSFORM_FAILED, {
+      originalError: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
