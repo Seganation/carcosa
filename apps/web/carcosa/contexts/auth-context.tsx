@@ -8,10 +8,32 @@ export type AuthUser = {
   name?: string | null;
 };
 
+// Validation error from API (Session 10 error format)
+export type ValidationErrorDetail = {
+  field: string;
+  message: string;
+  code: string;
+};
+
+export type ApiError = {
+  error: {
+    code: string;
+    message: string;
+    statusCode: number;
+    timestamp: string;
+    path?: string;
+    details?: {
+      errors?: ValidationErrorDetail[];
+      [key: string]: any;
+    };
+  };
+};
+
 type AuthContextType = {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -24,6 +46,28 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
+}
+
+// Helper to parse API errors (Session 10 validation format + old format)
+function parseApiError(data: any): string {
+  // Handle new validation error format from Session 10
+  if (data.error && data.error.details && data.error.details.errors) {
+    const errors = data.error.details.errors as ValidationErrorDetail[];
+    return errors.map((e) => e.message).join(", ");
+  }
+
+  // Handle error.message
+  if (data.error && data.error.message) {
+    return data.error.message;
+  }
+
+  // Handle string error
+  if (data.error && typeof data.error === "string") {
+    return data.error;
+  }
+
+  // Fallback to message
+  return data.message || "An error occurred";
 }
 
 type AuthProviderProps = {
@@ -74,11 +118,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     if (!response.ok) {
       const data = await response.json();
-      throw new Error(data.error || "Login failed");
+      const errorMessage = parseApiError(data);
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
     // Store the JWT token in localStorage
+    if (data.token) {
+      localStorage.setItem("carcosa_token", data.token);
+    }
+    setUser(data.user);
+  };
+
+  const register = async (email: string, password: string, name?: string) => {
+    const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ email, password, name }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      const errorMessage = parseApiError(data);
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    // Store the JWT token in localStorage if provided
     if (data.token) {
       localStorage.setItem("carcosa_token", data.token);
     }
@@ -106,7 +175,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

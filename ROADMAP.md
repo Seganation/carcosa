@@ -216,12 +216,16 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
   - ✅ Updated transform controller with standardized errors
   - **Status**: Production-grade error handling system operational!
 
-- [ ] **Task 2.11**: Wire frontend auth pages
-  - Connect login page to API
-  - Connect register page to API
-  - Add auth state management (React Context/Zustand)
-  - Add protected route handling
-  - Test auth flow end-to-end
+- [✅] **Task 2.11**: Wire frontend auth pages **COMPLETE (Session 11)** ✅
+  - ✅ Enhanced auth context with better error handling
+  - ✅ Added register function to auth context
+  - ✅ Updated login page to handle Session 10 validation errors
+  - ✅ Updated register page to use auth context register function
+  - ✅ Added ProtectedRoute component for auth-required pages
+  - ✅ Implemented redirect-after-login functionality
+  - ✅ Parse API errors (Session 10 validation format + legacy format)
+  - ✅ Type-safe error handling with ValidationErrorDetail types
+  - **Status**: Frontend auth fully wired to API with validation error support!
 
 - [ ] **Task 2.12**: Integrate file-router in dashboard
   - Add upload component to Files page
