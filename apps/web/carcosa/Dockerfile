@@ -5,23 +5,18 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Remove any duplicate packages
-COPY . .
-RUN if [ -d "packages/eslint-config" ] && [ -d "packages/config-eslint" ]; then \
-      rm -rf packages/eslint-config; \
-    fi && \
-    if [ -d "packages/typescript-config" ] && [ -d "packages/config-typescript" ]; then \
-      rm -rf packages/typescript-config; \
-    fi
-
-# Copy package files - fixed paths to match actual directory structure
+# Copy package files FIRST (before source code)
 COPY package.json package-lock.json* ./
-COPY apps/web/package.json ./apps/web/
+COPY apps/web/carcosa/package.json ./apps/web/carcosa/
 COPY packages/database/package.json ./packages/database/
-COPY packages/config-eslint/package.json ./packages/config-eslint/
-COPY packages/config-typescript/package.json ./packages/config-typescript/
+COPY packages/types/package.json ./packages/types/
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/cmage/package.json ./packages/cmage/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
 
-# Install dependencies with dev dependencies
+# Install dependencies for all workspaces
 RUN npm ci
 
 # Rebuild the source code only when needed
@@ -30,23 +25,34 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Handle duplicate packages again in the builder stage
-RUN if [ -d "packages/eslint-config" ] && [ -d "packages/config-eslint" ]; then \
-      rm -rf packages/eslint-config; \
-    fi && \
-    if [ -d "packages/typescript-config" ] && [ -d "packages/config-typescript" ]; then \
-      rm -rf packages/typescript-config; \
-    fi
-
-# Generate Prisma client with NODE_ENV=development
+# Generate Prisma client and build database package
 RUN cd packages/database && \
-    NODE_ENV=development npx prisma generate
+    NODE_ENV=development npx prisma generate && \
+    npm run build
+
+# Build other packages that web depends on
+RUN cd packages/types && npm run build
+RUN cd packages/sdk && npm run build
+RUN cd packages/cmage && npm run build
+RUN cd packages/ui && npm run build
 
 # Next.js builds can use a lot of memory
 ENV NODE_OPTIONS="--max_old_space_size=4096"
 
-# Build Next.js based on the preferred package manager
-RUN npm run build --workspace=apps/web
+# Set build-time environment variables
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# Version variables (passed from GitHub Actions)
+ARG NEXT_PUBLIC_APP_VERSION
+ARG NEXT_PUBLIC_BUILD_TIME
+ARG NEXT_PUBLIC_COMMIT_SHA
+ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
+ENV NEXT_PUBLIC_BUILD_TIME=$NEXT_PUBLIC_BUILD_TIME
+ENV NEXT_PUBLIC_COMMIT_SHA=$NEXT_PUBLIC_COMMIT_SHA
+
+# Build Next.js
+RUN npm run build --workspace=apps/web/carcosa
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -59,22 +65,33 @@ RUN apk add --no-cache wget curl
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Set working directory to the web directory right away
-WORKDIR /app/apps/web
+# Set working directory to the web directory
+WORKDIR /app/apps/web/carcosa
 
 # Make sure we have the necessary next.js files
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/.next ./.next
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/public ./public
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/next.config.js ./
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/package.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/.next ./.next
+COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/public ./public
+COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/next.config.mjs ./
+COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/package.json ./
 
-# Copy the entire node_modules to ensure all dependencies are available
+# Make sure next.js is properly installed
+RUN mkdir -p /app/apps/web/carcosa/node_modules/.bin
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules/next /app/apps/web/carcosa/node_modules/next
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules/.bin/next /app/apps/web/carcosa/node_modules/.bin/
+
+# Create the rest of the node_modules structure
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules /app/node_modules
 
 # Copy database files for direct access
 COPY --from=builder --chown=nodejs:nodejs /app/packages/database/dist /app/packages/database/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/database/prisma /app/packages/database/prisma
 COPY --from=builder --chown=nodejs:nodejs /app/packages/database/generated /app/packages/database/generated
+
+# Copy built packages
+COPY --from=builder --chown=nodejs:nodejs /app/packages/types/dist /app/packages/types/dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/sdk/dist /app/packages/sdk/dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/cmage/dist /app/packages/cmage/dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/ui/dist /app/packages/ui/dist
 
 # Make sure logs directory exists and has proper permissions
 RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app/logs
@@ -93,5 +110,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Start Next.js using the correct path to node_modules
-CMD ["/app/node_modules/.bin/next", "start"]
+# Start Next.js
+CMD ["node", "node_modules/next/dist/bin/next", "start"]
