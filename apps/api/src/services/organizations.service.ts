@@ -430,7 +430,7 @@ export class OrganizationsService {
       select: { email: true },
     });
 
-    if (!user) {
+    if (!user || !user.email) {
       return [];
     }
 

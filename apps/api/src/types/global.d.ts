@@ -9,10 +9,16 @@ declare global {
         email?: string;
         name?: string;
       };
-      userId: string; // Required when authenticated
+      userId?: string; // Set by auth middleware
       organizationId?: string;
       projectId?: string;
       teamId?: string;
+      apiKey?: {
+        id: string;
+        projectId: string;
+        label?: string;
+        permissions: string[];
+      };
     }
   }
 }

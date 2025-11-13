@@ -150,6 +150,12 @@ export function parseFilePath(filePath: string): {
   }
 
   const [organizationSlug, teamSlug, projectSlug, ...rest] = parts;
+
+  // These are required, so return null if any are missing
+  if (!organizationSlug || !teamSlug || !projectSlug) {
+    return null;
+  }
+
   let remainingParts = [...rest];
   let tenantSlug: string | undefined;
   let version: string | undefined;

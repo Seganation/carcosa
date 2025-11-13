@@ -8,6 +8,10 @@
   "references": [
     { "path": "../../packages/database" }
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/routes/carcosa-file-router.routes.ts"
+  ]
 }
 

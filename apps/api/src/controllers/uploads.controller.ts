@@ -4,17 +4,7 @@ import { uploadsService } from "../services/uploads.service.js";
 import type { InitUploadInput, UploadCallbackInput } from "../validations/uploads.validation.js";
 import { initUploadSchema, uploadCallbackSchema } from "../validations/uploads.validation.js";
 
-export interface ApiKeyRequest extends Request {
-  apiKey?: {
-    id: string;
-    projectId: string;
-    label?: string;
-    permissions: string[];
-  };
-  projectId?: string;
-}
-
-export async function initUpload(req: ApiKeyRequest, res: Response) {
+export async function initUpload(req: Request, res: Response) {
   try {
     // API key validation is now handled by middleware
     if (!req.apiKey || !req.projectId) {
@@ -55,7 +45,7 @@ export async function initUpload(req: ApiKeyRequest, res: Response) {
   }
 }
 
-export async function confirmUpload(req: ApiKeyRequest, res: Response) {
+export async function confirmUpload(req: Request, res: Response) {
   try {
     // API key validation is now handled by middleware
     if (!req.apiKey || !req.projectId) {
@@ -94,7 +84,7 @@ export async function confirmUpload(req: ApiKeyRequest, res: Response) {
   }
 }
 
-export async function proxyUpload(req: ApiKeyRequest, res: Response) {
+export async function proxyUpload(req: Request, res: Response) {
   try {
     // API key validation is now handled by middleware
     if (!req.apiKey || !req.projectId) {
@@ -122,7 +112,7 @@ export async function proxyUpload(req: ApiKeyRequest, res: Response) {
   }
 }
 
-export async function listUploads(req: ApiKeyRequest, res: Response) {
+export async function listUploads(req: Request, res: Response) {
   try {
     // API key validation is now handled by middleware
     if (!req.apiKey || !req.projectId) {

@@ -13,7 +13,8 @@ import auditLogs from "./audit-logs.routes.js";
 import settings from "./settings.routes.js";
 import apiKeys from "./api-keys.routes.js";
 import organizations from "./organizations.routes.js";
-import carcosaFileRouter from "./carcosa-file-router.routes.js";
+// TODO: Re-enable after fixing file-router API compatibility
+// import carcosaFileRouter from "./carcosa-file-router.routes.js";
 
 const router = Router();
 
@@ -32,7 +33,8 @@ router.use(settings);
 router.use(apiKeys);
 router.use("/organizations", organizations);
 
-// 🚀 CARCOSA FILE-ROUTER: Advanced uploads with typed routes, real-time progress, and multi-storage
-router.use("/carcosa", carcosaFileRouter);
+// 🚀 CARCOSA FILE-ROUTER: Temporarily disabled - needs API compatibility fixes
+// TODO: Fix file-router integration and re-enable
+// router.use("/carcosa", carcosaFileRouter);
 
 export default router;

@@ -103,6 +103,9 @@ export class ApiKeysService {
 
     return apiKeys.map(key => ({
       ...key,
+      label: key.label ?? undefined,
+      lastUsedAt: key.lastUsedAt ?? undefined,
+      revokedAt: key.revokedAt ?? undefined,
       permissions: key.permissions as string[],
     }));
   }

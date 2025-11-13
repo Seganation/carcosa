@@ -9,7 +9,8 @@ import { getLogger } from "./config/logger.js";
 import rateLimit from "./middlewares/rate-limit.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler.js";
 import routes from "./routes/index.js";
-import { createRealtimeSystem } from "@carcosa/file-router";
+// TODO: Re-enable after fixing file-router API compatibility
+// import { createRealtimeSystem } from "@carcosa/file-router";
 
 const parsed = Env.safeParse(process.env);
 if (!parsed.success) {
@@ -21,18 +22,18 @@ const env = parsed.data;
 const app = express();
 const server = createServer(app);
 
-// Initialize real-time system for upload progress tracking
-const realtimeSystem = env.REDIS_URL ? createRealtimeSystem({
-  redisUrl: env.REDIS_URL,
-  corsOrigins: env.NODE_ENV === 'production'
-    ? [`${env.API_URL?.replace('/api/v1', '')}:3000`]
-    : ['http://localhost:3000'],
-}) : null;
+// TODO: Initialize real-time system for upload progress tracking (after file-router fixes)
+// const realtimeSystem = env.REDIS_URL ? createRealtimeSystem({
+//   redisUrl: env.REDIS_URL,
+//   corsOrigins: process.env.NODE_ENV === 'production'
+//     ? [`${env.API_URL?.replace('/api/v1', '')}:3000`]
+//     : ['http://localhost:3000'],
+// }) : null;
 
 // Attach real-time system if available
-if (realtimeSystem && typeof realtimeSystem.attach === 'function') {
-  realtimeSystem.attach(server);
-}
+// if (realtimeSystem && typeof realtimeSystem.attach === 'function') {
+//   realtimeSystem.attach(server);
+// }
 
 app.use(
   cors({

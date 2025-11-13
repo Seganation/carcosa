@@ -3,8 +3,6 @@ import { z } from "zod";
 import { apiKeysService } from "../services/api-keys.service.js";
 import { requireParam, requireUserId } from "../utils/type-guards.js";
 
-// Use global Request interface
-
 // Validation schemas
 const createApiKeySchema = z.object({
   label: z.string().optional(),
@@ -16,7 +14,7 @@ const updateApiKeySchema = z.object({
   permissions: z.array(z.enum(["read", "write", "delete", "admin"])).optional(),
 });
 
-export async function list(req: AuthenticatedRequest, res: Response) {
+export async function list(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
@@ -39,7 +37,7 @@ export async function list(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function create(req: AuthenticatedRequest, res: Response) {
+export async function create(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
@@ -74,7 +72,7 @@ export async function create(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function update(req: AuthenticatedRequest, res: Response) {
+export async function update(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
@@ -111,7 +109,7 @@ export async function update(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function revoke(req: AuthenticatedRequest, res: Response) {
+export async function revoke(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
@@ -135,7 +133,7 @@ export async function revoke(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function regenerate(req: AuthenticatedRequest, res: Response) {
+export async function regenerate(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');

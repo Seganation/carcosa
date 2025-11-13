@@ -93,7 +93,7 @@ export class FilesService {
 
         deletedFiles.push(path);
       } catch (error) {
-        errors.push({ path, error: error.message });
+        errors.push({ path, error: error instanceof Error ? error.message : 'Unknown error' });
       }
     }
 

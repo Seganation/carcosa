@@ -47,7 +47,11 @@ export async function requireAuth(
       return res.status(401).json({ error: "user_not_found" });
     }
 
-    req.user = user;
+    req.user = {
+      id: user.id,
+      email: user.email ?? undefined,
+      name: user.name ?? undefined,
+    };
     req.userId = user.id;
     next();
   } catch (error) {
@@ -87,7 +91,11 @@ export async function optionalAuth(
     });
 
     if (user) {
-      req.user = user;
+      req.user = {
+        id: user.id,
+        email: user.email ?? undefined,
+        name: user.name ?? undefined,
+      };
       req.userId = user.id;
     }
   } catch (error) {

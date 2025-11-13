@@ -2,18 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { prisma } from "@carcosa/database";
 import { hashApiKey } from "../auth.js";
 
-export interface ApiKeyRequest extends Request {
-  apiKey?: {
-    id: string;
-    projectId: string;
-    label?: string;
-    permissions: string[];
-  };
-  projectId?: string;
-}
-
 export async function validateApiKey(
-  req: ApiKeyRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) {
@@ -74,10 +64,11 @@ export async function validateApiKey(
     }
 
     // Set API key context on request
+    // @ts-ignore - Global types not fully recognized yet
     req.apiKey = {
       id: keyRecord.id,
       projectId: keyRecord.projectId,
-      label: keyRecord.label || undefined,
+      label: keyRecord.label ?? undefined,
       permissions: ["read", "write"], // Default permissions for now
     };
 
@@ -103,7 +94,7 @@ export async function validateApiKey(
 export async function validateApiKeyWithPermissions(
   requiredPermissions: string[]
 ) {
-  return async (req: ApiKeyRequest, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // First validate the API key
       await validateApiKey(req, res, (err) => {

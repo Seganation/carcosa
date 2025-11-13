@@ -2,11 +2,6 @@ import { Request, Response } from "express";
 import { prisma } from "@carcosa/database";
 import { UsageService } from "../services/usage.service.js";
 
-// Type for authenticated request with user
-interface AuthRequest extends Request {
-  userId: string;
-}
-
 const usageService = new UsageService();
 
 // Record usage for a project (used by other controllers)
@@ -39,7 +34,7 @@ export async function recordUsage(projectId: string, usage: { uploads?: number; 
   }
 }
 
-export async function dailyForProject(req: AuthRequest, res: Response) {
+export async function dailyForProject(req: Request, res: Response) {
   try {
     if (!req.userId) {
       return res.status(401).json({ error: "unauthorized" });
@@ -91,7 +86,7 @@ export async function dailyForProject(req: AuthRequest, res: Response) {
 }
 
 // Get usage breakdown by tenant
-export async function getProjectUsageByTenant(req: AuthRequest, res: Response) {
+export async function getProjectUsageByTenant(req: Request, res: Response) {
   try {
     if (!req.userId) {
       return res.status(401).json({ error: "unauthorized" });

@@ -4,9 +4,7 @@ import { createProjectSchema } from "../validations/projects.validation.js";
 import { prisma } from "@carcosa/database";
 import { requireParam, requireUserId } from "../utils/type-guards.js";
 
-// Use global Request interface
-
-export async function list(req: AuthenticatedRequest, res: Response) {
+export async function list(req: Request, res: Response) {
   try {
     if (!req.userId) {
       return res.status(401).json({ error: "unauthorized" });
@@ -20,7 +18,7 @@ export async function list(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function listByTeam(req: AuthenticatedRequest, res: Response) {
+export async function listByTeam(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const teamId = requireParam(req.params, 'teamId');
@@ -36,7 +34,7 @@ export async function listByTeam(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function get(req: AuthenticatedRequest, res: Response) {
+export async function get(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
@@ -54,7 +52,7 @@ export async function get(req: AuthenticatedRequest, res: Response) {
 }
 
 export async function validateCredentials(
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ) {
   try {
@@ -142,7 +140,7 @@ export async function validateCredentials(
   }
 }
 
-export async function create(req: AuthenticatedRequest, res: Response) {
+export async function create(req: Request, res: Response) {
   try {
     if (!req.userId) {
       return res.status(401).json({ error: "unauthorized" });
@@ -170,7 +168,7 @@ export async function create(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function update(req: AuthenticatedRequest, res: Response) {
+export async function update(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
@@ -192,7 +190,7 @@ export async function update(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function deleteProject(req: AuthenticatedRequest, res: Response) {
+export async function deleteProject(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
@@ -214,7 +212,7 @@ export async function deleteProject(req: AuthenticatedRequest, res: Response) {
 }
 
 // Team-scoped resource controllers
-export async function getTeamTenants(req: AuthenticatedRequest, res: Response) {
+export async function getTeamTenants(req: Request, res: Response) {
   try {
     if (!req.userId) {
       return res.status(401).json({ error: "unauthorized" });
@@ -232,7 +230,7 @@ export async function getTeamTenants(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function getTeamTransforms(req: AuthenticatedRequest, res: Response) {
+export async function getTeamTransforms(req: Request, res: Response) {
   try {
     if (!req.userId) {
       return res.status(401).json({ error: "unauthorized" });
@@ -250,7 +248,7 @@ export async function getTeamTransforms(req: AuthenticatedRequest, res: Response
   }
 }
 
-export async function getTeamUsage(req: AuthenticatedRequest, res: Response) {
+export async function getTeamUsage(req: Request, res: Response) {
   try {
     if (!req.userId) {
       return res.status(401).json({ error: "unauthorized" });
@@ -268,7 +266,7 @@ export async function getTeamUsage(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-export async function getTeamAuditLogs(req: AuthenticatedRequest, res: Response) {
+export async function getTeamAuditLogs(req: Request, res: Response) {
   try {
     if (!req.userId) {
       return res.status(401).json({ error: "unauthorized" });

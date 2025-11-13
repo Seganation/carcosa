@@ -2,10 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import Env from "../config/env.js";
 
-// Use global Request interface with userId property
-
 export function authMiddleware(
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) {
@@ -36,7 +34,7 @@ export function authMiddleware(
 }
 
 export function optionalAuthMiddleware(
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) {
