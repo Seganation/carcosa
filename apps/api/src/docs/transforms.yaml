@@ -1,0 +1,359 @@
+paths:
+  /transform/{projectId}/{path}:
+    get:
+      tags:
+        - Image Transforms
+      summary: Transform and optimize images
+      description: |
+        On-demand image transformation with resizing, format conversion, and optimization.
+
+        **Features:**
+        - Resize images (width/height)
+        - Multiple fit modes (cover, contain, fill, inside, outside)
+        - Format conversion (JPEG, PNG, WebP, AVIF)
+        - Quality control
+        - Effects (blur, grayscale)
+        - Redis caching (24-hour TTL)
+        - CDN-friendly cache headers
+        - ETag support for 304 Not Modified responses
+
+        **Caching:**
+        - Transformed images are cached in Redis for 24 hours
+        - Returns `X-Cache: HIT` or `X-Cache: MISS` header
+        - Cache-Control header set to `public, max-age=31536000, immutable`
+        - ETag header for efficient caching
+
+        **Performance:**
+        - Returns `X-Processing-Time` header with milliseconds
+        - First request processes and caches
+        - Subsequent requests served from cache (< 10ms)
+
+        **CDN Integration:**
+        - Cache headers are CDN-friendly
+        - Can be deployed behind Cloudflare, CloudFront, etc.
+        - Edge caching reduces API load
+
+        **Supported Formats:**
+        - Input: JPEG, PNG, WebP, GIF, AVIF, TIFF
+        - Output: JPEG, PNG, WebP, AVIF
+
+        **Query Parameters:**
+        - All parameters are optional
+        - Original image returned if no transforms specified
+        - Invalid parameters return 400 error
+      operationId: transformImage
+      security: [] # Public endpoint (but can be protected per project)
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID that owns the file
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+          description: File path/key in storage
+          example: "profile-picture.jpg"
+        - in: query
+          name: w
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4096
+          description: Target width in pixels (1-4096)
+          example: 800
+        - in: query
+          name: h
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4096
+          description: Target height in pixels (1-4096)
+          example: 600
+        - in: query
+          name: fit
+          schema:
+            type: string
+            enum: [cover, contain, fill, inside, outside]
+            default: cover
+          description: |
+            How the image should be resized:
+            - `cover`: Crop to cover both dimensions (default)
+            - `contain`: Fit within dimensions (may have letterboxing)
+            - `fill`: Ignore aspect ratio, stretch to fill
+            - `inside`: Resize to fit inside dimensions (preserves aspect)
+            - `outside`: Resize to fit outside dimensions
+          example: cover
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [jpeg, jpg, png, webp, avif]
+          description: |
+            Output format. If not specified, uses input format.
+            - `jpeg/jpg`: JPEG format (lossy, good compression)
+            - `png`: PNG format (lossless, larger file size)
+            - `webp`: WebP format (modern, great compression)
+            - `avif`: AVIF format (next-gen, best compression)
+          example: webp
+        - in: query
+          name: quality
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 80
+          description: Quality for lossy formats (1-100). Higher is better quality but larger file size.
+          example: 85
+        - in: query
+          name: blur
+          schema:
+            type: number
+            minimum: 0.3
+            maximum: 1000
+          description: Blur radius (0.3 to 1000). Higher values = more blur.
+          example: 5
+        - in: query
+          name: grayscale
+          schema:
+            type: boolean
+            default: false
+          description: Convert image to grayscale
+          example: true
+      responses:
+        '200':
+          description: Transformed image
+          headers:
+            Content-Type:
+              description: Image MIME type
+              schema:
+                type: string
+                example: image/webp
+            Cache-Control:
+              description: CDN-friendly cache header
+              schema:
+                type: string
+                example: public, max-age=31536000, immutable
+            ETag:
+              description: Entity tag for caching
+              schema:
+                type: string
+                example: '"abc123def456"'
+            Last-Modified:
+              description: Last modification time
+              schema:
+                type: string
+                format: date-time
+            X-Cache:
+              description: Cache hit/miss indicator
+              schema:
+                type: string
+                enum: [HIT, MISS]
+                example: HIT
+            X-Processing-Time:
+              description: Processing time in milliseconds
+              schema:
+                type: string
+                example: "5ms"
+            Vary:
+              description: Vary header for compression
+              schema:
+                type: string
+                example: Accept-Encoding
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/avif:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not Modified (ETag matched)
+        '400':
+          description: Invalid transform parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidWidth:
+                  summary: Invalid width parameter
+                  value:
+                    error:
+                      code: "TRANSFORM_001"
+                      message: "Invalid width parameter"
+                      statusCode: 400
+                      timestamp: "2025-11-13T10:30:00.000Z"
+                      path: "/api/v1/transform/project-id/image.jpg"
+                      details:
+                        field: "w"
+                        value: "5000"
+                        constraint: "Must be between 1 and 4096"
+                invalidFormat:
+                  summary: Unsupported format
+                  value:
+                    error:
+                      code: "TRANSFORM_002"
+                      message: "Unsupported output format"
+                      statusCode: 400
+                      details:
+                        field: "format"
+                        value: "bmp"
+                        supportedFormats: ["jpeg", "png", "webp", "avif"]
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          description: Transform processing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: "TRANSFORM_003"
+                  message: "Failed to process image transformation"
+                  statusCode: 500
+                  timestamp: "2025-11-13T10:30:00.000Z"
+                  path: "/api/v1/transform/project-id/image.jpg"
+
+  /cache/stats:
+    get:
+      tags:
+        - Image Transforms
+        - Usage
+      summary: Get transform cache statistics
+      description: |
+        Get statistics about the transform cache performance.
+
+        **Metrics:**
+        - Total cache hits and misses
+        - Cache hit rate percentage
+        - Average processing time for cache hits vs misses
+        - Total cached items
+        - Total cache size
+
+        **Requires Authentication:**
+        - Admin or project owner only
+      operationId: getCacheStats
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Cache statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hits:
+                    type: integer
+                    description: Total cache hits
+                  misses:
+                    type: integer
+                    description: Total cache misses
+                  hitRate:
+                    type: number
+                    description: Cache hit rate percentage (0-100)
+                  totalItems:
+                    type: integer
+                    description: Total items in cache
+                  cacheSize:
+                    type: string
+                    description: Total cache size in human-readable format
+                  avgHitTime:
+                    type: string
+                    description: Average time for cache hits
+                  avgMissTime:
+                    type: string
+                    description: Average time for cache misses
+                  timestamp:
+                    type: string
+                    format: date-time
+              example:
+                hits: 15234
+                misses: 1523
+                hitRate: 90.91
+                totalItems: 1523
+                cacheSize: "2.4 GB"
+                avgHitTime: "5ms"
+                avgMissTime: "250ms"
+                timestamp: "2025-11-13T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+# Transform Examples
+x-code-samples:
+  - lang: curl
+    label: 'Resize to 800x600 (cover)'
+    source: |
+      curl -X GET \
+        'http://localhost:4000/api/v1/transform/PROJECT_ID/image.jpg?w=800&h=600&fit=cover&quality=85'
+
+  - lang: curl
+    label: 'Convert to WebP'
+    source: |
+      curl -X GET \
+        'http://localhost:4000/api/v1/transform/PROJECT_ID/image.jpg?format=webp&quality=90'
+
+  - lang: curl
+    label: 'Thumbnail with blur'
+    source: |
+      curl -X GET \
+        'http://localhost:4000/api/v1/transform/PROJECT_ID/image.jpg?w=150&h=150&fit=cover&blur=10'
+
+  - lang: curl
+    label: 'Grayscale conversion'
+    source: |
+      curl -X GET \
+        'http://localhost:4000/api/v1/transform/PROJECT_ID/image.jpg?grayscale=true'
+
+  - lang: javascript
+    label: 'React Image Component'
+    source: |
+      import { CarcosaImage } from '@carcosa/cmage';
+
+      function ProfilePicture() {
+        return (
+          <CarcosaImage
+            src="PROJECT_ID/profile-picture.jpg"
+            alt="Profile"
+            width={800}
+            height={600}
+            fit="cover"
+            quality={85}
+          />
+        );
+      }
+
+  - lang: html
+    label: 'Responsive images with srcset'
+    source: |
+      <img
+        src="/api/v1/transform/PROJECT_ID/hero.jpg?w=800"
+        srcset="
+          /api/v1/transform/PROJECT_ID/hero.jpg?w=400 400w,
+          /api/v1/transform/PROJECT_ID/hero.jpg?w=800 800w,
+          /api/v1/transform/PROJECT_ID/hero.jpg?w=1200 1200w
+        "
+        sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px"
+        alt="Hero image"
+      />

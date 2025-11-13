@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import fileUpload from "express-fileupload";
 import { createServer } from "http";
+import swaggerUi from "swagger-ui-express";
 import Env from "./config/env.js";
 import { getLogger } from "./config/logger.js";
 import rateLimit from "./middlewares/rate-limit.js";
@@ -11,6 +12,7 @@ import { errorHandler, notFoundHandler } from "./utils/errors.js";
 import routes from "./routes/index.js";
 import { realtimeSystem } from "./routes/carcosa-file-router.routes.js";
 import { getRedisClient } from "./utils/redis.js";
+import { swaggerSpec } from "./config/swagger.js";
 
 const parsed = Env.safeParse(process.env);
 if (!parsed.success) {
@@ -65,6 +67,25 @@ app.get("/api/v1/realtime/health", (_req, res) => {
     websocket: { status: "active" },
     timestamp: new Date().toISOString()
   });
+});
+
+// API Documentation with Swagger UI
+app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "Carcosa API Documentation",
+  customfavIcon: "https://swagger.io/favicon-32x32.png",
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    tryItOutEnabled: true,
+  },
+}));
+
+// OpenAPI spec JSON endpoint
+app.get("/api/v1/docs.json", (_req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
 });
 
 app.use("/api/v1", routes);

@@ -1,0 +1,474 @@
+paths:
+  /carcosa/health:
+    get:
+      tags:
+        - File Upload
+        - Real-time
+      summary: File-router system health check
+      description: |
+        Check the health status of the file-router upload system.
+
+        **Returns:**
+        - System status and version
+        - Configured storage providers
+        - Available upload routes
+        - Real-time system status
+        - Feature flags
+      operationId: fileRouterHealth
+      security: [] # Public endpoint
+      responses:
+        '200':
+          description: System health information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+              example:
+                status: "ok"
+                timestamp: "2025-11-13T10:30:00.000Z"
+                version: "1.0.0"
+                features:
+                  upload: true
+                  storage: true
+                  realtime: true
+                  multiProvider: true
+                storage:
+                  providers: ["s3-primary", "r2-primary"]
+                  defaultProvider: "s3-primary"
+                realtime:
+                  enabled: true
+                  maxConnections: 1000
+                routes:
+                  imageUpload: "POST /api/v1/carcosa/upload/image"
+                  videoUpload: "POST /api/v1/carcosa/upload/video"
+                  documentUpload: "POST /api/v1/carcosa/upload/document"
+                message: "Carcosa file-router system fully operational! 🚀"
+
+  /carcosa/init:
+    post:
+      tags:
+        - File Upload
+      summary: Initialize file upload
+      description: |
+        Initialize a file upload and receive a presigned URL for direct upload to storage.
+
+        **Upload Flow:**
+        1. Call this endpoint to initialize upload → Get presigned URL
+        2. Upload file directly to the presigned URL using PUT request
+        3. Call `/carcosa/complete` to finalize the upload
+
+        **Storage:**
+        - Files are uploaded directly to S3/R2 (not through the API server)
+        - Presigned URLs expire in 1 hour
+        - Supports multi-provider storage (S3, R2, MinIO)
+
+        **Route Names:**
+        - `imageUpload`: Images (max 4MB, 10 files, 4096x4096px)
+        - `videoUpload`: Videos (max 128MB, 1 file, 10min duration)
+        - `documentUpload`: Documents (max 16MB, 5 files)
+
+        **Real-time Events:**
+        - Emits `upload.progress` event with initialization status
+        - WebSocket clients receive real-time updates
+      operationId: initializeUpload
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - in: header
+          name: x-project-id
+          schema:
+            type: string
+            format: uuid
+          required: false
+          description: Project ID for file upload (optional, defaults to user's default project)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadInitRequest'
+            examples:
+              image:
+                summary: Upload an image
+                value:
+                  fileName: "profile-picture.jpg"
+                  fileSize: 2048576
+                  contentType: "image/jpeg"
+                  routeName: "imageUpload"
+              video:
+                summary: Upload a video
+                value:
+                  fileName: "demo-video.mp4"
+                  fileSize: 52428800
+                  contentType: "video/mp4"
+                  routeName: "videoUpload"
+              document:
+                summary: Upload a document
+                value:
+                  fileName: "report.pdf"
+                  fileSize: 1048576
+                  contentType: "application/pdf"
+                  routeName: "documentUpload"
+      responses:
+        '200':
+          description: Upload initialized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadInitResponse'
+              example:
+                uploadId: "upload_1731499800000_abc123"
+                fileName: "profile-picture.jpg"
+                fileSize: 2048576
+                contentType: "image/jpeg"
+                presignedUrl: "https://carcosa-uploads.s3.amazonaws.com/org/team/project/profile-picture.jpg?X-Amz-Algorithm=..."
+                fields: null
+                status: "initialized"
+                expiresAt: "2025-11-13T11:30:00.000Z"
+                message: "Upload initialized successfully"
+        '400':
+          description: Invalid request or route name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidRoute:
+                  summary: Invalid route name
+                  value:
+                    error:
+                      code: "INVALID_ROUTE"
+                      message: "Invalid route name"
+                      statusCode: 400
+                      timestamp: "2025-11-13T10:30:00.000Z"
+                      path: "/api/v1/carcosa/init"
+                      details:
+                        availableRoutes: ["imageUpload", "videoUpload", "documentUpload"]
+                validation:
+                  $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+
+  /carcosa/complete:
+    post:
+      tags:
+        - File Upload
+      summary: Complete file upload
+      description: |
+        Complete a file upload after successfully uploading to the presigned URL.
+
+        **When to call:**
+        - After uploading the file to the presigned URL (Step 2)
+        - File has been successfully stored in S3/R2
+
+        **Actions performed:**
+        - Creates database record for the file
+        - Triggers upload complete handler
+        - Creates audit log entry
+        - Emits real-time `upload.completed` event
+        - Returns file metadata
+
+        **Real-time Events:**
+        - Emits `upload.completed` to user's WebSocket connection
+        - Emits `upload.completed` to project channel
+      operationId: completeUpload
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - in: header
+          name: x-project-id
+          schema:
+            type: string
+            format: uuid
+          required: false
+          description: Project ID (must match the one used in /init)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadCompleteRequest'
+            examples:
+              image:
+                summary: Complete image upload
+                value:
+                  uploadId: "upload_1731499800000_abc123"
+                  fileKey: "profile-picture.jpg"
+                  routeName: "imageUpload"
+              video:
+                summary: Complete video upload
+                value:
+                  uploadId: "upload_1731499800000_def456"
+                  fileKey: "demo-video.mp4"
+                  routeName: "videoUpload"
+      responses:
+        '200':
+          description: Upload completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadCompleteResponse'
+              example:
+                uploadId: "upload_1731499800000_abc123"
+                fileKey: "profile-picture.jpg"
+                status: "completed"
+                message: "Upload completed successfully"
+                timestamp: "2025-11-13T10:35:00.000Z"
+        '400':
+          description: Invalid request or route name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidRoute:
+                  summary: Invalid route name
+                  value:
+                    error:
+                      code: "INVALID_ROUTE"
+                      message: "Invalid route name"
+                      statusCode: 400
+                validation:
+                  $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /carcosa/files/{fileId}:
+    get:
+      tags:
+        - File Upload
+        - Files
+      summary: Get authenticated file access
+      description: |
+        Get authenticated access to an uploaded file via signed URL.
+
+        **Access Control:**
+        - Validates user has access to the project
+        - Checks project ownership or team membership
+        - Creates audit log entry for file access
+
+        **Response Modes:**
+        - `redirect=false` (default): Returns JSON with signed URL
+        - `redirect=true`: Redirects directly to the file
+
+        **Signed URLs:**
+        - Valid for 1 hour
+        - Direct access to S3/R2 storage
+        - No API server overhead after URL generation
+      operationId: getFileAccess
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: File ID from upload response
+        - in: query
+          name: redirect
+          schema:
+            type: boolean
+            default: false
+          description: If true, redirects to signed URL instead of returning JSON
+      responses:
+        '200':
+          description: File access granted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fileId:
+                    type: string
+                    format: uuid
+                  filename:
+                    type: string
+                  size:
+                    type: string
+                    description: File size in bytes (as string)
+                  mimeType:
+                    type: string
+                  url:
+                    type: string
+                    format: uri
+                    description: Signed URL for file access (valid for 1 hour)
+                  expiresAt:
+                    type: string
+                    format: date-time
+                  message:
+                    type: string
+              example:
+                fileId: "123e4567-e89b-12d3-a456-426614174000"
+                filename: "profile-picture.jpg"
+                size: "2048576"
+                mimeType: "image/jpeg"
+                url: "https://carcosa-uploads.s3.amazonaws.com/org/team/project/profile-picture.jpg?X-Amz-..."
+                expiresAt: "2025-11-13T11:30:00.000Z"
+                message: "Signed URL generated successfully"
+        '302':
+          description: Redirect to signed URL (when redirect=true)
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /carcosa/storage/stats:
+    get:
+      tags:
+        - File Upload
+        - Usage
+      summary: Get storage statistics
+      description: |
+        Get comprehensive storage statistics including:
+        - Overall storage usage across all providers
+        - Per-provider statistics
+        - Storage costs estimation
+        - Health check status for all providers
+
+        **Requires Authentication:**
+        - User must be authenticated
+        - Returns aggregated stats across all accessible projects
+      operationId: getStorageStats
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Storage statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stats:
+                    type: object
+                    description: Overall storage statistics
+                  costs:
+                    type: object
+                    description: Estimated storage costs
+                  health:
+                    type: object
+                    description: Provider health status
+                  timestamp:
+                    type: string
+                    format: date-time
+              example:
+                stats:
+                  totalFiles: 1523
+                  totalSize: "52428800000"
+                  providers:
+                    s3-primary:
+                      files: 1200
+                      size: "42949672960"
+                    r2-primary:
+                      files: 323
+                      size: "9479127040"
+                costs:
+                  s3:
+                    storage: "$0.99"
+                    requests: "$0.05"
+                  r2:
+                    storage: "$0.00"
+                    requests: "$0.00"
+                health:
+                  s3-primary: "healthy"
+                  r2-primary: "healthy"
+                timestamp: "2025-11-13T10:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          description: Failed to get storage stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /carcosa/realtime:
+    get:
+      tags:
+        - Real-time
+        - File Upload
+      summary: Real-time WebSocket information
+      description: |
+        Get information about the real-time WebSocket system for upload progress tracking.
+
+        **WebSocket Events:**
+        - `upload.progress`: Progress updates during upload
+        - `upload.completed`: Upload completion notification
+        - `upload.failed`: Upload failure notification
+        - `file.transformed`: Image transformation completed
+
+        **Connection:**
+        Connect using Socket.IO client library at the base API URL.
+
+        **Example (JavaScript):**
+        ```javascript
+        import { io } from 'socket.io-client';
+
+        const socket = io('http://localhost:4000');
+
+        // Subscribe to upload progress
+        socket.on('upload.progress', (data) => {
+          console.log(\`Upload progress: \${data.progress}%\`);
+        });
+
+        // Subscribe to completion
+        socket.on('upload.completed', (data) => {
+          console.log('Upload complete:', data);
+        });
+        ```
+      operationId: getRealtimeInfo
+      security: [] # Public endpoint
+      responses:
+        '200':
+          description: Real-time system information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  protocol:
+                    type: string
+                  path:
+                    type: string
+                  events:
+                    type: array
+                    items:
+                      type: string
+                  message:
+                    type: string
+                  example:
+                    type: object
+                    properties:
+                      client:
+                        type: string
+                      subscribe:
+                        type: string
+              example:
+                enabled: true
+                protocol: "websocket"
+                path: "/socket.io"
+                events:
+                  - "upload.progress"
+                  - "upload.completed"
+                  - "upload.failed"
+                  - "file.transformed"
+                message: "WebSocket real-time system available. Connect via Socket.IO client."
+                example:
+                  client: "import { io } from 'socket.io-client'; const socket = io('http://localhost:4000');"
+                  subscribe: "socket.on('upload.progress', (data) => console.log(data));"
