@@ -80,12 +80,12 @@ export async function handle(req: Request, res: Response) {
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     const counter = new ByteCounter();
     
-    image.on("error", async (error) => {
+    image.on("error", async (error: Error) => {
       // Update transform record with error
       await prisma.transform.update({
         where: { id: transformRecord.id },
-        data: { 
-          status: "failed", 
+        data: {
+          status: "failed",
           error: error.message 
         },
       });

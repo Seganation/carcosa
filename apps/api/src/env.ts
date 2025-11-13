@@ -26,3 +26,6 @@ export const Env = z
   .transform((e) => ({ ...e, API_PORT: Number(e.API_PORT) }));
 
 export type Env = z.infer<typeof Env>;
+
+// Parse and export environment
+export const env = Env.parse(process.env);

@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
-import bcrypt from "bcrypt";
 import { prisma } from "@carcosa/database";
-import jwt from "jsonwebtoken";
-import Env from "../config/env.js";
+import { hashPassword, comparePassword, signJwt, verifyJwt } from "../auth.js";
+import { env } from "../env.js";
 import { registerSchema, loginSchema } from "../validations/auth.validation.js";
 
 export async function register(req: Request, res: Response) {
@@ -19,7 +18,7 @@ export async function register(req: Request, res: Response) {
     }
 
     // Hash password
-    const passwordHash = await bcrypt.hash(body.password, 12);
+    const passwordHash = await hashPassword(body.password);
 
     // Create user
     const user = await prisma.user.create({
@@ -61,18 +60,16 @@ export async function login(req: Request, res: Response) {
     }
 
     // Verify password
-    const isValid = await bcrypt.compare(body.password, user.passwordHash);
+    const isValid = await comparePassword(body.password, user.passwordHash);
     if (!isValid) {
       return res.status(401).json({ error: "invalid_credentials" });
     }
 
     // Generate JWT
-    const env = Env.parse(process.env);
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = signJwt({
+      userId: user.id,
+      email: user.email ?? undefined
+    });
 
     // Set HTTP-only cookie
     res.cookie("auth_token", token, {
@@ -117,8 +114,10 @@ export async function me(req: Request, res: Response) {
       return res.status(401).json({ error: "no_token" });
     }
 
-    const env = Env.parse(process.env);
-    const payload = jwt.verify(token, env.JWT_SECRET) as { userId: string };
+    const payload = verifyJwt(token);
+    if (!payload) {
+      return res.status(401).json({ error: "invalid_token" });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
