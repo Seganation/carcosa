@@ -12,7 +12,7 @@ export class BucketsService {
       select: { teamId: true, role: true },
     });
 
-    const teamIds = userTeams.map(member => member.teamId);
+    const teamIds = userTeams.map((member: any) => member.teamId);
 
     return prisma.bucket.findMany({
       where: {
@@ -119,7 +119,7 @@ export class BucketsService {
       select: { teamId: true, role: true },
     });
 
-    const teamIds = userTeams.map(member => member.teamId);
+    const teamIds = userTeams.map((member: any) => member.teamId);
 
     const bucket = await prisma.bucket.findFirst({
       where: {
@@ -353,7 +353,7 @@ export class BucketsService {
     
     // Get all teams in the same organization that don't already have access
     const organizationId = bucket.ownerTeam.organization.id;
-    const currentAccessTeamIds = bucket.sharedTeams.map(access => access.teamId);
+    const currentAccessTeamIds = bucket.sharedTeams.map((access: any) => access.teamId);
     currentAccessTeamIds.push(bucket.ownerTeamId); // Add owner team
 
     return prisma.team.findMany({

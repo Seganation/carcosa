@@ -3,6 +3,9 @@ import { prisma } from "@carcosa/database";
 import { hashPassword, comparePassword, signJwt, verifyJwt } from "../auth.js";
 import { env } from "../env.js";
 import { registerSchema, loginSchema } from "../validations/auth.validation.js";
+import { OrganizationsService } from "../services/organizations.service.js";
+
+const organizationsService = new OrganizationsService();
 
 export async function register(req: Request, res: Response) {
   try {
@@ -33,6 +36,27 @@ export async function register(req: Request, res: Response) {
         name: true,
       },
     });
+
+    // Auto-create default organization and team for the new user
+    try {
+      const userName = body.name || body.email.split('@')[0];
+      const orgName = `${userName}'s Workspace`;
+      const orgSlug = `${userName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-workspace`;
+
+      await organizationsService.createOrganization(
+        {
+          name: orgName,
+          slug: orgSlug,
+          description: "Your personal workspace",
+        },
+        user.id
+      );
+
+      console.log(`✅ Auto-created organization "${orgName}" for user ${user.email}`);
+    } catch (orgError) {
+      console.error("Failed to create default organization:", orgError);
+      // Don't fail registration if org creation fails
+    }
 
     return res.status(201).json({ user });
   } catch (error) {

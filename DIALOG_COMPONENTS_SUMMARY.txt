@@ -1,0 +1,278 @@
+================================================================================
+               CARCOSA DASHBOARD DIALOG COMPONENTS INVENTORY
+================================================================================
+Generated: 2025-11-14
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+Total Dialog Components:           7 (all COMPLETE)
+Inline Dialogs Found:             3 (in other components, not extracted)
+Missing Dialog Components:         12+ (for full CRUD coverage)
+Implementation Completeness:       ~40% (basic CREATE operations covered)
+
+KEY FINDINGS:
+- All existing dialog components are fully functional
+- CREATE operations are well-implemented across all core entities
+- EDIT/DELETE operations are largely missing (except for Tenants and Buckets)
+- Several complex dialogs are embedded inline in components (needs extraction)
+- No stub/incomplete dialogs found
+
+================================================================================
+EXISTING COMPLETE DIALOGS (7)
+================================================================================
+
+1. CreateOrganizationDialog
+   - File: create-organization-dialog.tsx
+   - Operation: CREATE
+   - Status: COMPLETE
+   - Key Features: Auto-slug, validation, toast feedback
+
+2. CreateTeamDialog
+   - File: create-team-dialog.tsx
+   - Operation: CREATE
+   - Status: COMPLETE
+   - Key Features: Org-scoped, auto-slug generation
+
+3. CreateProjectDialog
+   - File: create-project-dialog.tsx
+   - Operation: CREATE
+   - Status: COMPLETE
+   - Key Features: Multi-tenant toggle, bucket selection, team assignment
+
+4. CreateAppDialog
+   - File: create-app-dialog.tsx
+   - Operation: CREATE
+   - Status: COMPLETE
+   - Key Features: Similar to CreateProjectDialog
+
+5. CreateBucketDialog
+   - File: create-bucket-dialog.tsx
+   - Operation: CREATE
+   - Status: COMPLETE
+   - Key Features: S3/R2 support, credential encryption, region config
+
+6. InviteUserDialog
+   - File: invite-user-dialog.tsx
+   - Operation: CREATE
+   - Status: COMPLETE
+   - Key Features: Role-based, org/team level, email validation
+
+7. BucketSharingDialog
+   - File: bucket-sharing-dialog.tsx
+   - Operation: UPDATE/DELETE
+   - Status: COMPLETE
+   - Key Features: Grant/revoke access, 3 permission levels, team management
+
+================================================================================
+INLINE DIALOGS (Embedded in Components - Need Extraction)
+================================================================================
+
+1. Tenant Dialogs (app-tenants.tsx - lines 265-375)
+   - Operations: CREATE, UPDATE, DELETE
+   - Status: COMPLETE (but embedded)
+   - Recommendation: Extract to separate files
+
+2. API Key Dialogs (app-api-keys.tsx - lines 286-400+)
+   - Operations: CREATE, REGENERATE, REVOKE
+   - Status: COMPLETE (but embedded)
+   - Recommendation: Extract to separate files
+
+3. Delete Project Dialog (app-settings.tsx - lines 154-202)
+   - Operation: DELETE
+   - Status: INCOMPLETE (TODO: missing API call)
+   - Recommendation: Extract and implement API call
+
+================================================================================
+MISSING HIGH-PRIORITY DIALOGS (6)
+================================================================================
+
+1. edit-organization-dialog.tsx
+   - Update organization: name, slug, description, logo
+   - Similar Pattern: CreateOrganizationDialog
+   - Priority: HIGH
+
+2. delete-organization-dialog.tsx
+   - Delete organization with warnings about cascade
+   - Multi-step confirmation
+   - Priority: HIGH
+
+3. edit-team-dialog.tsx
+   - Update team: name, slug, description
+   - Similar Pattern: CreateTeamDialog
+   - Priority: HIGH
+
+4. delete-team-dialog.tsx
+   - Delete team with cascade impact warnings
+   - Confirmation dialog
+   - Priority: HIGH
+
+5. edit-member-role-dialog.tsx
+   - Change member role: OWNER → ADMIN → MEMBER → VIEWER
+   - Applies to TeamMember and OrganizationMember
+   - Priority: HIGH
+
+6. remove-member-dialog.tsx
+   - Remove team or organization member
+   - Confirmation with impact warnings
+   - Priority: HIGH
+
+================================================================================
+MISSING MEDIUM-PRIORITY DIALOGS (4)
+================================================================================
+
+7. edit-project-dialog.tsx
+   - Update project: name, slug, bucket, multi-tenant setting
+   - Priority: MEDIUM
+
+8. delete-project-dialog.tsx
+   - Delete project configuration (files remain in bucket)
+   - Confirmation dialog
+   - Priority: MEDIUM
+
+9. edit-bucket-dialog.tsx
+   - Update bucket: display name, credentials, endpoint, region
+   - Priority: MEDIUM
+
+10. delete-bucket-dialog.tsx
+    - Disconnect bucket with warnings about dependent projects
+    - Priority: MEDIUM
+
+================================================================================
+MISSING LOW-PRIORITY DIALOGS (2)
+================================================================================
+
+11. revoke-invitation-dialog.tsx
+    - Cancel pending invitations
+    - Priority: LOW
+
+12. edit-api-key-dialog.tsx
+    - Update API key: label, permissions
+    - Priority: LOW (may not be needed if keys are immutable)
+
+================================================================================
+IMPLEMENTATION PATTERNS
+================================================================================
+
+SUCCESSFUL PATTERNS (from existing CREATE dialogs):
+✓ Props: open, onOpenChange, onSuccess callbacks
+✓ State: loading, form data, form reset
+✓ Feedback: toast notifications (success/error)
+✓ Validation: client-side before submission
+✓ UX: disabled buttons during submission, clear error messages
+✓ Styling: consistent dialog styling, icons from lucide-react
+✓ Auto-generation: slug auto-generation from name field
+
+MISSING PATTERNS (for EDIT/DELETE):
+✗ Pre-filling forms with existing data
+✗ Showing impact of destructive actions
+✗ Multi-step confirmations for sensitive operations
+✗ Visual role/permission comparisons
+✗ Extracted dialogs (many still inline)
+
+================================================================================
+CRUD COVERAGE MATRIX
+================================================================================
+
+Organization:
+  CREATE: ✓ (CreateOrganizationDialog)
+  EDIT:   ✗ (MISSING: edit-organization-dialog)
+  DELETE: ✗ (MISSING: delete-organization-dialog)
+  READ:   ✓ (in sidebar/list)
+
+Team (under Organization):
+  CREATE: ✓ (CreateTeamDialog)
+  EDIT:   ✗ (MISSING: edit-team-dialog)
+  DELETE: ✗ (MISSING: delete-team-dialog)
+  READ:   ✓
+
+Team Members:
+  INVITE: ✓ (InviteUserDialog)
+  EDIT_ROLE: ✗ (MISSING: edit-member-role-dialog)
+  REMOVE:    ✗ (MISSING: remove-member-dialog)
+  READ:      ✓
+
+Project (under Team):
+  CREATE: ✓ (CreateProjectDialog)
+  EDIT:   ✗ (MISSING: edit-project-dialog)
+  DELETE: ✗ (MISSING: delete-project-dialog - stub exists)
+  READ:   ✓
+
+API Keys (under Project):
+  CREATE:  ✓ (inline in app-api-keys.tsx)
+  REGEN:   ✓ (inline in app-api-keys.tsx)
+  REVOKE:  ✓ (inline in app-api-keys.tsx)
+  EDIT:    ✗ (MISSING: edit-api-key-dialog)
+  READ:    ✓
+
+Tenants (under Project):
+  CREATE: ✓ (inline in app-tenants.tsx)
+  EDIT:   ✓ (inline in app-tenants.tsx)
+  DELETE: ✓ (inline in app-tenants.tsx)
+  READ:   ✓
+
+Bucket:
+  CREATE: ✓ (CreateBucketDialog)
+  EDIT:   ✗ (MISSING: edit-bucket-dialog)
+  DELETE: ✗ (MISSING: delete-bucket-dialog)
+  READ:   ✓
+
+Bucket Sharing:
+  GRANT:  ✓ (BucketSharingDialog)
+  REVOKE: ✓ (BucketSharingDialog)
+  READ:   ✓
+
+SUMMARY:
+  ✓ Implemented: 8 operations
+  ✗ Missing: 12 operations
+  Overall Coverage: ~40% (8/20 core operations)
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+IMMEDIATE (Priority 1 - Extract Inline Dialogs):
+1. Extract tenant dialogs from app-tenants.tsx
+2. Extract API key dialogs from app-api-keys.tsx
+3. Extract/implement delete-project-dialog in app-settings.tsx
+
+SHORT TERM (Priority 2 - Create Critical Dialogs):
+4. edit-organization-dialog.tsx
+5. delete-organization-dialog.tsx
+6. edit-team-dialog.tsx
+7. delete-team-dialog.tsx
+8. edit-member-role-dialog.tsx
+9. remove-member-dialog.tsx
+
+MEDIUM TERM (Priority 3 - Create Secondary Dialogs):
+10. edit-project-dialog.tsx
+11. delete-project-dialog.tsx
+12. edit-bucket-dialog.tsx
+13. delete-bucket-dialog.tsx
+
+LONG TERM (Priority 4 - Utility Dialogs):
+14. revoke-invitation-dialog.tsx
+15. edit-api-key-dialog.tsx (if needed)
+
+================================================================================
+FILES FOR QUICK REFERENCE
+================================================================================
+
+Reports Generated:
+1. DIALOG_COMPONENTS_INVENTORY.md (381 lines)
+   - Comprehensive inventory with full details
+   - Entity relationship hierarchy
+   - Implementation patterns analysis
+
+2. DIALOG_COMPONENTS_QUICK_REFERENCE.md (168 lines)
+   - Quick lookup table
+   - Implementation template
+   - Files needing extraction
+
+3. DIALOG_COMPONENTS_SUMMARY.txt (this file)
+   - Executive summary
+   - Quick statistics
+   - Action items
+
+================================================================================

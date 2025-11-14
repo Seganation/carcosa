@@ -81,6 +81,62 @@ export async function listUserOrganizations(req: Request, res: Response) {
   }
 }
 
+/**
+ * Initialize workspace for legacy users or users without organizations
+ * Creates a default organization and team automatically
+ */
+export async function initializeWorkspace(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    // Check if user already has organizations
+    const existingOrgs = await organizationsService.getUserOrganizations(req.userId);
+    if (existingOrgs.length > 0) {
+      return res.status(400).json({
+        error: "workspace_already_exists",
+        message: "User already has an organization"
+      });
+    }
+
+    // Get user info to create personalized workspace
+    const { prisma } = await import("@carcosa/database");
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { email: true, name: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "user_not_found" });
+    }
+
+    // Create workspace with user's name or email
+    const userName = user.name || user.email?.split('@')[0] || "User";
+    const orgName = `${userName}'s Workspace`;
+    const orgSlug = `${userName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-workspace-${Date.now()}`;
+
+    const organization = await organizationsService.createOrganization(
+      {
+        name: orgName,
+        slug: orgSlug,
+        description: "Your personal workspace",
+      },
+      req.userId
+    );
+
+    console.log(`✅ Initialized workspace "${orgName}" for legacy user ${user.email}`);
+
+    res.status(201).json({
+      organization,
+      message: "Workspace initialized successfully"
+    });
+  } catch (error) {
+    console.error("Initialize workspace error:", error);
+    res.status(500).json({ error: "workspace_initialization_failed" });
+  }
+}
+
 export async function createTeam(req: Request, res: Response) {
   try {
     if (!req.userId) {

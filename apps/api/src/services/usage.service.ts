@@ -29,7 +29,7 @@ export class UsageService {
     const currentDate = new Date(startDate);
     
     while (currentDate <= new Date()) {
-      const existingUsage = usage.find(u => 
+      const existingUsage = usage.find((u: any) =>
         u.day.toDateString() === currentDate.toDateString()
       );
       

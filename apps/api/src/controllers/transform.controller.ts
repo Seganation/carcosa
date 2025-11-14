@@ -395,7 +395,7 @@ export async function getTransformStats(req: Request, res: Response) {
 
     const total = await prisma.transform.count({ where: { projectId } });
 
-    const statsMap = stats.reduce((acc, stat) => {
+    const statsMap = stats.reduce((acc: any, stat: any) => {
       acc[stat.status] = stat._count.status;
       return acc;
     }, {} as Record<string, number>);

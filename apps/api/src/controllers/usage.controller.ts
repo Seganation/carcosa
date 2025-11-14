@@ -134,7 +134,7 @@ export async function getProjectUsageByTenant(req: Request, res: Response) {
 
     // Get file and transform counts for each tenant
     const tenantStats = await Promise.all(
-      tenantUsage.map(async (tenant) => {
+      tenantUsage.map(async (tenant: any) => {
         const [fileCount, transformCount] = await Promise.all([
           prisma.file.count({ where: { projectId, tenantId: tenant.id } }),
           prisma.transform.count({ where: { projectId, file: { tenantId: tenant.id } } })

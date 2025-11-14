@@ -447,10 +447,10 @@ export function validate(schema: z.ZodSchema<any>) {
           code: err.code,
         }));
 
-        throw new ValidationError('Request validation failed', {
+        return next(new ValidationError('Request validation failed', {
           errors: validationErrors,
           details: error.flatten(),
-        });
+        }));
       }
 
       // Re-throw other errors

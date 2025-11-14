@@ -10,7 +10,10 @@ import { Permission } from '../types/permissions.js';
 
 /**
  * Rate limit tier configurations
+ * Development mode: Much higher limits for testing
  */
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 export const RateLimitTiers = {
   /**
    * Very high limit for read operations
@@ -18,7 +21,7 @@ export const RateLimitTiers = {
    */
   READ: {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 10000,
+    maxRequests: isDevelopment ? 100000 : 10000,
   },
 
   /**
@@ -27,7 +30,7 @@ export const RateLimitTiers = {
    */
   STANDARD: {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 1000,
+    maxRequests: isDevelopment ? 100000 : 1000,
   },
 
   /**
@@ -36,7 +39,7 @@ export const RateLimitTiers = {
    */
   WRITE: {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 500,
+    maxRequests: isDevelopment ? 100000 : 500,
   },
 
   /**
@@ -45,7 +48,7 @@ export const RateLimitTiers = {
    */
   EXPENSIVE: {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100,
+    maxRequests: isDevelopment ? 10000 : 100,
   },
 
   /**
@@ -54,7 +57,7 @@ export const RateLimitTiers = {
    */
   DELETE: {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 50,
+    maxRequests: isDevelopment ? 1000 : 50,
   },
 
   /**
@@ -63,7 +66,7 @@ export const RateLimitTiers = {
    */
   ADMIN: {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 20,
+    maxRequests: isDevelopment ? 1000 : 20,
   },
 } as const;
 

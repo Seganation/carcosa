@@ -228,7 +228,7 @@ export async function exportAuditLogs(req: Request, res: Response) {
       "Details",
     ];
 
-    const csvRows = logs.map(log => [
+    const csvRows = logs.map((log: any) => [
       log.createdAt.toISOString(),
       log.action,
       log.resource,
@@ -240,7 +240,7 @@ export async function exportAuditLogs(req: Request, res: Response) {
     ]);
 
     const csvContent = [csvHeaders, ...csvRows]
-      .map(row => row.map(field => `"${field}"`).join(","))
+      .map(row => row.map((field: any) => `"${field}"`).join(","))
       .join("\n");
 
     // Set response headers for CSV download

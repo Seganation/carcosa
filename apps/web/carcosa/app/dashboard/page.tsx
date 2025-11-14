@@ -18,9 +18,10 @@ import {
 import Link from "next/link";
 import { bucketsAPI } from "../../lib/buckets-api";
 import { projectsAPI } from "../../lib/projects-api";
+import { OnboardingWorkspace } from "../../components/dashboard/onboarding-workspace";
 
 export default function DashboardPage() {
-  const { currentTeam, teams, organizations } = useTeam();
+  const { currentTeam, teams, organizations, refreshTeams } = useTeam();
   const [stats, setStats] = useState({
     buckets: 0,
     projects: 0,
@@ -31,14 +32,14 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadStats = async () => {
       if (!currentTeam) return;
-      
+
       try {
         setLoading(true);
         const [bucketsResponse, projectsResponse] = await Promise.all([
           bucketsAPI.list(),
           projectsAPI.list(),
         ]);
-        
+
         setStats({
           buckets: bucketsResponse.buckets?.length || 0,
           projects: projectsResponse.projects?.length || 0,
@@ -54,6 +55,21 @@ export default function DashboardPage() {
     loadStats();
   }, [currentTeam, teams]);
 
+  // Show onboarding for users without organizations
+  if (!currentTeam && organizations.length === 0) {
+    return (
+      <OnboardingWorkspace
+        onWorkspaceCreated={() => {
+          // Refresh teams to load the newly created organization
+          if (refreshTeams) {
+            refreshTeams();
+          }
+        }}
+      />
+    );
+  }
+
+  // Show loading or empty state if no team selected but orgs exist
   if (!currentTeam) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">

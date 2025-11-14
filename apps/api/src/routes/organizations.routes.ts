@@ -4,6 +4,7 @@ import {
   createOrganization,
   getOrganization,
   listUserOrganizations,
+  initializeWorkspace,
   createTeam,
   getTeam,
   listUserTeams,
@@ -20,6 +21,7 @@ router.use(authMiddleware);
 // Organization routes
 router.post("/", createOrganization);
 router.get("/", listUserOrganizations);
+router.post("/initialize", initializeWorkspace);
 
 // Team routes within organizations (must come before :id route)
 router.post("/:organizationId/teams", createTeam);

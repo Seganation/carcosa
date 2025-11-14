@@ -25,7 +25,7 @@ export interface InviteUserData {
 
 export class OrganizationsService {
   async createOrganization(data: CreateOrganizationData, ownerId: string) {
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       // Create organization
       const organization = await tx.organization.create({
         data: {
@@ -184,7 +184,7 @@ export class OrganizationsService {
       throw new Error("Insufficient permissions to create teams");
     }
 
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       const team = await tx.team.create({
         data: {
           ...data,
@@ -390,7 +390,7 @@ export class OrganizationsService {
       throw new Error("Invitation has expired");
     }
 
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       // Update invitation status
       await tx.invitation.update({
         where: { id: invitationId },

@@ -10,12 +10,12 @@ export interface JwtPayload {
 }
 
 export function signJwt(payload: JwtPayload, expiresIn: string = "7d"): string {
-  return jwt.sign(payload, env.API_SECRET, { expiresIn } as jwt.SignOptions);
+  return jwt.sign(payload, env.JWT_SECRET, { expiresIn } as jwt.SignOptions);
 }
 
 export function verifyJwt(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, env.API_SECRET) as JwtPayload;
+    return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
   } catch (error) {
     return null;
   }

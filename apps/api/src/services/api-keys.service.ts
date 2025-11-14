@@ -101,7 +101,7 @@ export class ApiKeysService {
       orderBy: { createdAt: "desc" },
     });
 
-    return apiKeys.map(key => ({
+    return apiKeys.map((key: any) => ({
       ...key,
       label: key.label ?? undefined,
       lastUsedAt: key.lastUsedAt ?? undefined,

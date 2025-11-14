@@ -73,7 +73,7 @@ export async function validateApiKey(
       }
     } else if (Array.isArray(keyRecord.permissions)) {
       // Ensure permissions is a string array (Prisma JsonArray compatibility)
-      permissions = keyRecord.permissions.filter((p): p is string => typeof p === 'string');
+      permissions = keyRecord.permissions.filter((p: any): p is string => typeof p === 'string');
     } else {
       permissions = ['read', 'write']; // Fallback to default
     }

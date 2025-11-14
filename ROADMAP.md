@@ -320,151 +320,416 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
 
 ---
 
-### **WEEK 3: TESTING & DEPLOYMENT** (Future)
+### **WEEK 3: FRONTEND COMPLETION - MEMBER MANAGEMENT** (Next Priority)
 
-**Goal**: Test thoroughly, deploy to staging, prepare for production
+**Goal**: Complete organization and team member management UI
 
-#### Phase 3A: Testing
-- [ ] **Task 3.1**: Write API integration tests
-- [ ] **Task 3.2**: Write upload E2E test
-- [ ] **Task 3.3**: Test multi-tenant isolation
-- [ ] **Task 3.4**: Load testing (100 concurrent uploads)
+**Prerequisite**: Week 2 Complete ✅
 
-#### Phase 3B: Documentation
-- [ ] **Task 3.5**: Generate OpenAPI spec
-- [ ] **Task 3.6**: Write deployment guide
-- [ ] **Task 3.7**: Create SDK usage examples
-- [ ] **Task 3.8**: Record demo video
+#### Phase 3A: Backend APIs for Member Management (Days 1-2)
+- [ ] **Task 3.1**: Organization member APIs **CRITICAL** ⚠️ **MISSING APIs**
+  - `PATCH /organizations/:id` - Update organization
+  - `DELETE /organizations/:id` - Delete organization
+  - `GET /organizations/:id/members` - List org members
+  - `PATCH /organizations/:id/members/:memberId` - Update member role
+  - `DELETE /organizations/:id/members/:memberId` - Remove member
 
-#### Phase 3C: Production Prep
-- [ ] **Task 3.9**: Deploy to staging environment
-- [ ] **Task 3.10**: Set up monitoring (Sentry)
-- [ ] **Task 3.11**: Security audit
-- [ ] **Task 3.12**: Performance optimization
+- [ ] **Task 3.2**: Team member APIs **CRITICAL** ⚠️ **MISSING APIs**
+  - `PATCH /teams/:id` - Update team
+  - `DELETE /teams/:id` - Delete team
+  - `GET /teams/:id/members` - List team members
+  - `PATCH /teams/:id/members/:memberId` - Update team member role
+  - `DELETE /teams/:id/members/:memberId` - Remove team member
+
+- [ ] **Task 3.3**: Add permission checks
+  - OWNER/ADMIN only for member management
+  - Validate role changes
+  - Prevent removing organization owner
+  - Prevent removing last team member
+
+#### Phase 3B: Organization & Team Settings Pages (Days 2-3)
+- [ ] **Task 3.4**: Create organization settings page
+  - `apps/web/carcosa/app/dashboard/organizations/[id]/settings/page.tsx`
+  - General settings section (name, slug, description, logo)
+  - Members management section with table
+  - Teams list section
+  - Danger zone (delete org, leave org)
+
+- [ ] **Task 3.5**: Create team settings page
+  - `apps/web/carcosa/app/dashboard/team/[id]/settings/page.tsx`
+  - General settings section (name, slug, description)
+  - Members management section with table
+  - Projects list section
+  - Buckets section
+  - Danger zone (delete team, leave team)
+
+#### Phase 3C: Member Management Dialogs (Days 3-4)
+- [ ] **Task 3.6**: Organization member dialogs
+  - `edit-organization-dialog.tsx` - Edit org name/slug/description
+  - `edit-organization-member-dialog.tsx` - Change member role
+  - `remove-organization-member-dialog.tsx` - Remove member
+  - `delete-organization-dialog.tsx` - Delete org with confirmation
+  - `leave-organization-dialog.tsx` - Leave org (non-owners)
+
+- [ ] **Task 3.7**: Team member dialogs
+  - `edit-team-dialog.tsx` - Edit team name/slug/description
+  - `edit-team-member-dialog.tsx` - Change team member role
+  - `remove-team-member-dialog.tsx` - Remove team member
+  - `delete-team-dialog.tsx` - Delete team with confirmation
+  - `leave-team-dialog.tsx` - Leave team (non-owners)
+
+#### Phase 3D: Wire Up Existing Pages (Day 5)
+- [ ] **Task 3.8**: Update organizations page
+  - Add settings link to org cards
+  - Wire up Accept/Decline invitation buttons
+  - Add edit/leave buttons
+
+- [ ] **Task 3.9**: Update teams page
+  - Wire settings button to team settings page
+  - Wire create team button to dialog
+  - Add team actions dropdown
 
 **End of Week 3 Milestone**:
+- ✅ Full CRUD for organizations
+- ✅ Full CRUD for teams
+- ✅ Full member management (add/edit/remove)
+- ✅ Settings pages complete
+- ✅ Proper permission enforcement
+
+**Impact**: Users can fully manage their organizations and teams! 🎉
+
+---
+
+### **WEEK 4: FRONTEND COMPLETION - USER PROFILE & INVITATIONS** (Next)
+
+**Goal**: Complete user account management and invitation system
+
+**Prerequisite**: Week 3 Complete
+
+#### Phase 4A: User Profile Backend (Days 1-2)
+- [ ] **Task 4.1**: User profile APIs ⚠️ **MISSING APIs**
+  - `PATCH /auth/profile` - Update name/email
+  - `POST /auth/change-password` - Change password
+  - `POST /auth/forgot-password` - Request password reset
+  - `POST /auth/reset-password` - Complete password reset
+  - Email verification flow (optional)
+
+- [ ] **Task 4.2**: Invitation management APIs ⚠️ **MISSING APIs**
+  - `DELETE /organizations/invitations/:id` - Revoke invitation
+  - `POST /organizations/invitations/:id/decline` - Decline invitation
+  - `POST /organizations/invitations/:id/resend` - Resend invitation
+
+#### Phase 4B: User Profile UI (Days 2-3)
+- [ ] **Task 4.3**: Account settings page
+  - Enhance `/dashboard/account/page.tsx`
+  - Profile section (name, email, picture)
+  - Security section (password, 2FA)
+  - Organizations & teams list
+
+- [ ] **Task 4.4**: Profile dialogs
+  - `edit-profile-dialog.tsx` - Edit name/email
+  - `change-password-dialog.tsx` - Change password
+
+- [ ] **Task 4.5**: Password reset pages
+  - `/auth/forgot-password/page.tsx` - Request reset
+  - `/auth/reset-password/page.tsx` - Complete reset
+
+#### Phase 4C: Invitation UI (Days 3-4)
+- [ ] **Task 4.6**: Invitation dialogs
+  - `accept-invitation-banner.tsx` - Persistent banner at top
+  - `revoke-invitation-dialog.tsx` - Cancel invitation
+  - `decline-invitation-dialog.tsx` - Decline invitation
+
+- [ ] **Task 4.7**: Wire invitation actions
+  - Add banner to dashboard layout
+  - Add revoke/resend buttons to invitations list
+  - Add invitation count to header
+
+#### Phase 4D: Project & Bucket Enhancements (Days 4-5)
+- [ ] **Task 4.8**: Project dialogs
+  - `edit-project-dialog.tsx` - Edit project
+  - Complete `delete-project-dialog.tsx` (currently stub)
+  - `transfer-project-dialog.tsx` - Transfer to different team
+
+- [ ] **Task 4.9**: Bucket dialogs
+  - `edit-bucket-dialog.tsx` - Edit bucket
+  - `delete-bucket-dialog.tsx` - Enhanced delete
+  - Create bucket detail page `/dashboard/buckets/[id]/page.tsx`
+
+- [ ] **Task 4.10**: Backend APIs for buckets ⚠️ **MISSING API**
+  - `PATCH /buckets/:id` - Update bucket
+  - `POST /buckets/:id/rotate-credentials` - Rotate keys
+
+**End of Week 4 Milestone**:
+- ✅ Full user profile management
+- ✅ Password reset flow
+- ✅ Complete invitation system
+- ✅ Full project & bucket management
+- ✅ ~60% of frontend UI complete
+
+---
+
+### **WEEK 5: FRONTEND COMPLETION - POLISH & UX** (Final)
+
+**Goal**: Polish UI, improve UX, extract inline components
+
+**Prerequisite**: Week 4 Complete
+
+#### Phase 5A: Component Extraction (Days 1-2)
+- [ ] **Task 5.1**: Extract tenant dialogs
+  - Extract from `app-tenants.tsx` to separate files
+  - `create-tenant-dialog.tsx`
+  - `edit-tenant-dialog.tsx`
+  - `delete-tenant-dialog.tsx`
+
+- [ ] **Task 5.2**: Extract API key dialogs
+  - Extract from `app-api-keys.tsx` to separate files
+  - `create-api-key-dialog.tsx`
+  - `regenerate-api-key-dialog.tsx`
+  - `delete-api-key-dialog.tsx`
+
+- [ ] **Task 5.3**: Standardize components
+  - Create shared dialog base component
+  - Standardize error handling
+  - Standardize loading states
+  - Consistent toast notifications
+
+#### Phase 5B: Workspace Switcher & Navigation (Days 2-3)
+- [ ] **Task 5.4**: Workspace switcher
+  - Create workspace switcher dropdown in header
+  - Show all organizations user is member of
+  - Label single-member orgs as "Personal Workspace"
+  - Add team switcher within workspace
+  - Persist selection in localStorage
+
+- [ ] **Task 5.5**: Navigation improvements
+  - Add breadcrumbs to all settings pages
+  - Add back navigation
+  - Add unsaved changes warning
+  - Improve sidebar organization
+
+#### Phase 5C: UX Polish (Days 3-4)
+- [ ] **Task 5.6**: Onboarding improvements
+  - Enhance onboarding-workspace.tsx
+  - Add hierarchy explanation
+  - Add tooltips and help text
+  - Create guided tour (optional)
+
+- [ ] **Task 5.7**: Empty states
+  - Improve empty states across all pages
+  - Add helpful CTAs
+  - Add illustrations
+  - Add getting started guides
+
+- [ ] **Task 5.8**: Loading states
+  - Add skeleton loaders
+  - Add loading spinners
+  - Add optimistic updates where appropriate
+
+#### Phase 5D: Testing & QA (Day 5)
+- [ ] **Task 5.9**: Frontend testing
+  - Cross-browser testing
+  - Mobile responsiveness
+  - Accessibility audit
+  - Performance optimization
+
+- [ ] **Task 5.10**: Integration testing
+  - Test all CRUD flows
+  - Test permission enforcement
+  - Test error handling
+  - Test edge cases
+
+**End of Week 5 Milestone**:
+- ✅ All 27 missing components complete
+- ✅ All 7 inline dialogs extracted
+- ✅ Workspace switcher operational
+- ✅ Polished, production-ready UI
+- ✅ **100% frontend UI completion!** 🎉
+
+---
+
+### **WEEK 6: TESTING & DEPLOYMENT**
+
+**Goal**: Comprehensive testing and production deployment
+
+#### Phase 6A: Backend Testing
+- [ ] **Task 6.1**: Write API integration tests
+- [ ] **Task 6.2**: Write upload E2E test
+- [ ] **Task 6.3**: Test multi-tenant isolation
+- [ ] **Task 6.4**: Load testing (100 concurrent uploads)
+
+#### Phase 6B: Documentation
+- [ ] **Task 6.5**: API documentation complete ✅ (Already done - Session 13)
+- [ ] **Task 6.6**: Write deployment guide
+- [ ] **Task 6.7**: Create SDK usage examples
+- [ ] **Task 6.8**: Record demo video
+
+#### Phase 6C: Production Prep
+- [ ] **Task 6.9**: Deploy to staging environment
+- [ ] **Task 6.10**: Set up monitoring (Sentry)
+- [ ] **Task 6.11**: Security audit
+- [ ] **Task 6.12**: Performance optimization
+
+**End of Week 6 Milestone**:
 - ✅ MVP is production-ready
 - ✅ Tests cover critical paths
 - ✅ Deployed to staging
 - ✅ Documentation is comprehensive
+- ✅ Ready for beta users
 
 ---
 
-### **WEEKS 4-6: V1.0 FEATURES** (Future)
+### **WEEKS 7-9: V1.0 FEATURES** (Future)
 
 **Goal**: Feature parity with UploadThing + unique advantages
 
-#### Phase 4A: Advanced Features
+#### Phase 7A: Advanced Features
 - [ ] Video processing (FFmpeg)
 - [ ] Webhook system
 - [ ] Usage quota enforcement
 - [ ] Email notifications
 
-#### Phase 4B: Enterprise Features
-- [ ] Granular permissions
+#### Phase 7B: Enterprise Features
 - [ ] Advanced analytics
 - [ ] Audit log search
-- [ ] Team invitation flow
+- [ ] Two-factor authentication
+- [ ] SSO/SAML support
 
-#### Phase 4C: Performance & Scale
+#### Phase 7C: Performance & Scale
 - [ ] CDN integration guide
 - [ ] Background job processing
-- [ ] Database optimization
 - [ ] Load balancing setup
+- [ ] Multi-region support
 
-**End of Week 6 Milestone**:
+**End of Week 9 Milestone**:
 - ✅ v1.0 released
 - ✅ Feature parity with UploadThing
 - ✅ Production-ready at scale
 
 ---
 
-## 🎯 Current Sprint (Session 4 - November 13, 2025)
+## 🎯 Current Sprint (November 14, 2025)
 
-### Session 4 Goals: Documentation & Week 2 Planning
+### Frontend Analysis Complete ✅
 
-**Focus**: Update documentation to reflect Week 1 completion, plan Week 2 tasks
+**Focus**: Comprehensive analysis of frontend completion requirements
 
-1. ✅ Week 1 Phase 1A Complete (Sessions 1-2)
-   - ✅ Fixed all TypeScript errors (45 → 0)
-   - ✅ Fixed database package exports
-   - ✅ Built all packages successfully
+**Completed**:
+1. ✅ Analyzed database schema and data model
+2. ✅ Audited all API controllers and routes (19 resources)
+3. ✅ Inventoried all UI components and dialogs (7 complete, 3 inline, 27 missing)
+4. ✅ Compared with industry standards (GitHub, Vercel, Linear)
+5. ✅ Created comprehensive FRONTEND_COMPLETION.md (detailed breakdown)
+6. ✅ Updated ROADMAP.md with Weeks 3-5 frontend tasks
 
-2. ✅ Week 1 Phase 1B Complete (Session 3)
-   - ✅ Implemented authentication system
-   - ✅ Created JWT utilities
-   - ✅ Added bcrypt password hashing
-   - ✅ All auth endpoints working
+**Key Findings**:
+- **Backend**: ~25 missing APIs (primarily member management, user profile, invitations)
+- **Frontend**: 27 missing components, 7 inline components to extract
+- **Data Model**: Solid, similar to GitHub (User → Orgs → Teams → Projects)
+- **Completion**: Currently ~40% frontend UI complete
+- **Timeline**: 3-4 weeks to reach 100% frontend completion
 
-3. 🔄 Session 4 Tasks (Current)
-   - 🔄 Update ROADMAP.md with Week 1 completion
-   - 📝 Update PRODUCTION-READINESS-STATUS.md
-   - 📝 Review API endpoints and document status
-   - 📝 Create detailed Week 2 task breakdown
-   - 📝 Document known issues and limitations
+**Documents Created**:
+- `FRONTEND_COMPLETION.md` (comprehensive 500+ line breakdown)
+- `CRUD_ANALYSIS.md` (detailed API analysis by explore agent)
+- `DIALOG_COMPONENTS_*.md` (component inventory by explore agent)
 
-**Next**: Begin Week 2 MVP Features (caching, frontend integration, testing)
+**Next Steps**: Begin Week 3 - Member Management Backend APIs
 
 ---
 
 ## 📊 Progress Tracking
 
 ### Overall Completion
-- **Week 1**: 0% → Target: 100%
-- **Week 2**: 0% → Target: 100%
-- **Week 3**: 0% → Target: 100%
-- **MVP Ready**: Target Week 3
-- **V1.0 Ready**: Target Week 6
+- **Week 1**: ✅ **100%** (TypeScript fixes, auth, builds)
+- **Week 2**: ✅ **76%** (13/17 tasks complete - uploads, caching, validation, docs, optimization)
+- **Week 3**: 📝 0% → Target: 100% (Member management)
+- **Week 4**: 📝 0% → Target: 100% (User profile, invitations)
+- **Week 5**: 📝 0% → Target: 100% (Polish, UX, extraction)
+- **Week 6**: 📝 0% → Target: 100% (Testing & deployment)
+- **MVP Ready**: Target Week 6
+- **V1.0 Ready**: Target Week 9
 
-### Critical Path Items
+### Current Phase Completion
+- **Backend Core**: 85% (auth ✅, uploads ✅, transforms ✅, rate limiting ✅)
+- **Frontend UI**: ~40% (7/27 components complete)
+- **Member Management**: 0% (missing all APIs and UI)
+- **User Profile**: 0% (missing all APIs and UI)
+- **Documentation**: 95% (API docs ✅, deployment guide pending)
+
+### Critical Path Items (Updated November 14, 2025)
 | Item | Status | Blocker? | Priority |
 |------|--------|----------|----------|
-| TypeScript errors fixed | 🔄 In Progress | YES | ⭐⭐⭐⭐⭐ |
-| Auth implemented | 📝 Pending | YES | ⭐⭐⭐⭐⭐ |
-| Uploads work E2E | 📝 Pending | YES | ⭐⭐⭐⭐⭐ |
-| Transform caching | 📝 Pending | NO | ⭐⭐⭐⭐ |
+| TypeScript errors fixed | ✅ **COMPLETE** | NO | ⭐⭐⭐⭐⭐ |
+| Auth implemented | ✅ **COMPLETE** | NO | ⭐⭐⭐⭐⭐ |
+| Uploads work E2E | ✅ **COMPLETE** | NO | ⭐⭐⭐⭐⭐ |
+| Transform caching | ✅ **COMPLETE** | NO | ⭐⭐⭐⭐ |
+| Member management | 📝 **NEXT** | YES | ⭐⭐⭐⭐⭐ |
+| User profile | 📝 Pending | YES | ⭐⭐⭐⭐ |
 | Frontend polish | 📝 Pending | NO | ⭐⭐⭐ |
 | Testing | 📝 Pending | NO | ⭐⭐⭐⭐ |
 
 ---
 
-## 🚨 Known Issues & Risks
+## 🚨 Known Issues & Risks (Updated November 14, 2025)
 
-### Critical Issues
-1. **TypeScript Errors** (45+) - Blocks deployment
-2. **No Auth** - Security risk
-3. **No Tests** - Quality risk
+### Critical Issues (Blocks Production)
+1. ❌ **No Member Management** - Cannot manage org/team members (25 missing APIs)
+2. ❌ **No User Profile Management** - Cannot update name/email/password (4 missing APIs)
+3. ❌ **Incomplete Frontend UI** - 27 missing dialogs/components (~60% gap)
+4. ❌ **No Settings Pages** - Cannot edit orgs/teams (2 new pages needed)
+5. ⚠️ **No Tests** - Quality risk (integration tests needed)
 
-### Medium Issues
-4. Incomplete transform caching - Performance risk
-5. Basic frontend integration - UX risk
-6. No monitoring - Observability risk
+### Medium Issues (Degrades UX)
+6. ⚠️ **No Workspace Switcher** - Hard to switch between orgs
+7. ⚠️ **No Invitation Management** - Cannot revoke/decline invitations (3 APIs)
+8. ⚠️ **Inline Dialogs** - 7 components need extraction for reusability
+9. ⚠️ **No Password Reset** - Users locked out if they forget password
+10. ⚠️ **No Monitoring** - Observability risk (Sentry not set up)
 
-### Low Issues
-7. Missing documentation - Adoption risk
-8. No video processing - Feature gap
-9. Limited framework support - Market risk
+### Low Issues (Nice to Have)
+11. 🔵 **No Version Management** - File versioning exists in schema but no UI/API
+12. 🔵 **No Video Processing** - Feature gap vs UploadThing
+13. 🔵 **Settings Not Persisted** - Currently returns hardcoded defaults
+14. 🔵 **Limited Framework Support** - Market risk (SDK only, no framework integrations)
 
 ---
 
-## 🎬 Next Actions
+## 🎬 Next Actions (Updated November 14, 2025)
 
-**RIGHT NOW** (This session):
-1. Create progress log
-2. Start fixing TypeScript errors
-3. Get API building successfully
-4. Cooldown for review
+**COMPLETED**:
+- ✅ Week 1: TypeScript fixes, auth, builds (100%)
+- ✅ Week 2: Uploads, caching, validation, docs (76%)
+- ✅ Frontend analysis and planning (comprehensive)
 
-**AFTER COOLDOWN** (Next session):
-5. Continue TypeScript fixes
-6. Implement auth
-7. Test uploads
-8. Another cooldown
+**UP NEXT** (Week 3 - Member Management):
 
-**THIS WEEK**:
-- Complete all Week 1 tasks
-- Get to deployable state
-- Celebrate MVP progress! 🎉
+**Sprint 1 - Backend APIs** (Days 1-2):
+1. Implement organization member CRUD (5 endpoints)
+2. Implement team member CRUD (5 endpoints)
+3. Add permission checks (OWNER/ADMIN only)
+4. Test API endpoints with Swagger
+
+**Sprint 2 - Settings Pages** (Days 2-3):
+5. Create organization settings page
+6. Create team settings page
+7. Wire up navigation and links
+
+**Sprint 3 - Member Dialogs** (Days 3-4):
+8. Create 5 organization member dialogs
+9. Create 5 team member dialogs
+10. Test CRUD flows end-to-end
+
+**Sprint 4 - Integration** (Day 5):
+11. Wire up existing pages (orgs, teams)
+12. Test permission enforcement
+13. QA and bug fixes
+
+**THIS MONTH**:
+- Complete Week 3: Member management (100%)
+- Complete Week 4: User profile & invitations (100%)
+- Complete Week 5: Polish & UX (100%)
+- Reach 100% frontend UI completion! 🎉
 
 ---
 
@@ -478,5 +743,5 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
 
 ---
 
-**Last Updated**: November 13, 2025 - Roadmap created
-**Next Update**: After first cooldown (8 tasks completed)
+**Last Updated**: November 14, 2025 - Frontend analysis complete, Weeks 3-5 added
+**Next Update**: After Week 3 completion (member management)
