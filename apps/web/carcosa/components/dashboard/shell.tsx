@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { DashboardHeader } from "./header";
 import { DashboardSidebar } from "./sidebar";
 import { AppSidebar } from "./app-sidebar";
+import { InvitationsBanner } from "./invitations-banner";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -27,11 +28,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {isAppRoute ? (
             // App routes: centered content with proper padding
             <div className="max-w-4xl mx-auto px-6 py-8">
+              <InvitationsBanner />
               {children}
             </div>
           ) : (
             // Dashboard routes: full-width content
             <div className="px-6 py-8">
+              <InvitationsBanner />
               {children}
             </div>
           )}
