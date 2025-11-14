@@ -9,6 +9,10 @@ import { Textarea } from "../ui/textarea";
 import { Settings, Trash2, AlertTriangle, Users, Building2, LogOut, UserCog } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { toast } from "react-hot-toast";
+import { DeleteOrganizationDialog } from "./delete-organization-dialog";
+import { LeaveOrganizationDialog } from "./leave-organization-dialog";
+import { EditOrganizationMemberDialog } from "./edit-organization-member-dialog";
+import { RemoveOrganizationMemberDialog } from "./remove-organization-member-dialog";
 
 interface OrganizationSettingsProps {
   organizationId: string;
@@ -338,7 +342,7 @@ export function OrganizationSettings({ organizationId }: OrganizationSettingsPro
           </Card>
 
           {/* Danger Zone */}
-          {canManage && (
+          {(canManage || !isOwner) && (
             <Card className="border-red-200">
               <CardHeader>
                 <CardTitle className="text-red-600 flex items-center gap-2">
@@ -347,27 +351,47 @@ export function OrganizationSettings({ organizationId }: OrganizationSettingsPro
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg">
-                  <div>
-                    <h4 className="font-medium">Delete Organization</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Permanently delete this organization and all its data.
-                      This action cannot be undone.
-                    </p>
+                {canManage && (
+                  <>
+                    <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg">
+                      <div>
+                        <h4 className="font-medium">Delete Organization</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Permanently delete this organization and all its data.
+                          This action cannot be undone.
+                        </p>
+                      </div>
+                      <DeleteOrganizationDialog
+                        organizationId={organization.id}
+                        organizationName={organization.name}
+                        organizationSlug={organization.slug}
+                        teamCount={organization._count.teams}
+                        memberCount={organization._count.members}
+                        onSuccess={() => loadOrganizationData()}
+                      />
+                    </div>
+                    {organization._count.teams > 0 && (
+                      <p className="text-sm text-red-600">
+                        You must delete all teams before deleting the organization.
+                      </p>
+                    )}
+                  </>
+                )}
+                {!isOwner && (
+                  <div className="flex items-center justify-between p-4 border border-orange-200 rounded-lg">
+                    <div>
+                      <h4 className="font-medium">Leave Organization</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Remove yourself from this organization.
+                        You will need to be invited again to rejoin.
+                      </p>
+                    </div>
+                    <LeaveOrganizationDialog
+                      organizationId={organization.id}
+                      organizationName={organization.name}
+                      membershipId="current-member-id"
+                    />
                   </div>
-                  <Button
-                    variant="destructive"
-                    onClick={handleDeleteOrganization}
-                    disabled={organization._count.teams > 0}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-                </div>
-                {organization._count.teams > 0 && (
-                  <p className="text-sm text-red-600">
-                    You must delete all teams before deleting the organization.
-                  </p>
                 )}
               </CardContent>
             </Card>
@@ -407,9 +431,25 @@ export function OrganizationSettings({ organizationId }: OrganizationSettingsPro
                       {member.role}
                     </Badge>
                     {canManage && member.role !== "OWNER" && (
-                      <Button variant="ghost" size="sm">
-                        <UserCog className="h-4 w-4" />
-                      </Button>
+                      <>
+                        <EditOrganizationMemberDialog
+                          organizationId={organization.id}
+                          memberId={member.id}
+                          memberName={member.user.name || member.user.email}
+                          memberEmail={member.user.email}
+                          currentRole={member.role}
+                          onSuccess={() => loadOrganizationData()}
+                        />
+                        <RemoveOrganizationMemberDialog
+                          organizationId={organization.id}
+                          organizationName={organization.name}
+                          memberId={member.id}
+                          memberName={member.user.name || member.user.email}
+                          memberEmail={member.user.email}
+                          memberRole={member.role}
+                          onSuccess={() => loadOrganizationData()}
+                        />
+                      </>
                     )}
                   </div>
                 </div>

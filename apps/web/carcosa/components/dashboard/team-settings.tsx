@@ -9,6 +9,10 @@ import { Textarea } from "../ui/textarea";
 import { Settings, Trash2, AlertTriangle, Users, FolderOpen, UserCog, Database } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { toast } from "react-hot-toast";
+import { DeleteTeamDialog } from "./delete-team-dialog";
+import { LeaveTeamDialog } from "./leave-team-dialog";
+import { EditTeamMemberDialog } from "./edit-team-member-dialog";
+import { RemoveTeamMemberDialog } from "./remove-team-member-dialog";
 
 interface TeamSettingsProps {
   teamId: string;
@@ -355,20 +359,48 @@ export function TeamSettings({ teamId }: TeamSettingsProps) {
                       This action cannot be undone.
                     </p>
                   </div>
-                  <Button
-                    variant="destructive"
-                    onClick={handleDeleteTeam}
-                    disabled={projects.length > 0 || buckets.length > 0}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
+                  <DeleteTeamDialog
+                    teamId={team.id}
+                    teamName={team.name}
+                    teamSlug={team.slug}
+                    projectCount={projects.length}
+                    memberCount={members.length}
+                    onSuccess={() => loadTeamData()}
+                  />
                 </div>
                 {(projects.length > 0 || buckets.length > 0) && (
                   <p className="text-sm text-red-600">
                     You must delete all projects and buckets before deleting the team.
                   </p>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Leave Team (for non-owners) */}
+          {!canManage && (
+            <Card className="border-orange-200">
+              <CardHeader>
+                <CardTitle className="text-orange-600 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Leave Team
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between p-4 border border-orange-200 rounded-lg">
+                  <div>
+                    <h4 className="font-medium">Leave Team</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Remove yourself from this team.
+                      You will need to be invited again to rejoin.
+                    </p>
+                  </div>
+                  <LeaveTeamDialog
+                    teamId={team.id}
+                    teamName={team.name}
+                    membershipId="current-member-id"
+                  />
+                </div>
               </CardContent>
             </Card>
           )}
@@ -407,9 +439,25 @@ export function TeamSettings({ teamId }: TeamSettingsProps) {
                       {member.role}
                     </Badge>
                     {canManage && member.role !== "OWNER" && (
-                      <Button variant="ghost" size="sm">
-                        <UserCog className="h-4 w-4" />
-                      </Button>
+                      <>
+                        <EditTeamMemberDialog
+                          teamId={team.id}
+                          memberId={member.id}
+                          memberName={member.user.name || member.user.email}
+                          memberEmail={member.user.email}
+                          currentRole={member.role}
+                          onSuccess={() => loadTeamData()}
+                        />
+                        <RemoveTeamMemberDialog
+                          teamId={team.id}
+                          teamName={team.name}
+                          memberId={member.id}
+                          memberName={member.user.name || member.user.email}
+                          memberEmail={member.user.email}
+                          memberRole={member.role}
+                          onSuccess={() => loadTeamData()}
+                        />
+                      </>
                     )}
                   </div>
                 </div>
