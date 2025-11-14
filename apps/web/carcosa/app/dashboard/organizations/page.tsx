@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
@@ -8,10 +9,12 @@ import { useTeam } from "../../../contexts/team-context";
 import { CreateOrganizationDialog } from "../../../components/dashboard/create-organization-dialog";
 import { CreateTeamDialog } from "../../../components/dashboard/create-team-dialog";
 import { InviteUserDialog } from "../../../components/dashboard/invite-user-dialog";
+import { DeclineInvitationDialog } from "../../../components/dashboard/decline-invitation-dialog";
 import { toast } from "react-hot-toast";
 
 export default function OrganizationsPage() {
-  const { organizations, teams, invitations, loading, refreshOrganizations, refreshTeams } = useTeam();
+  const { organizations, teams, invitations, loading, refreshOrganizations, refreshTeams, refreshInvitations } = useTeam();
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     await Promise.all([
@@ -19,6 +22,36 @@ export default function OrganizationsPage() {
       refreshTeams(),
     ]);
     toast.success("Refreshed organizations and teams");
+  };
+
+  const handleAcceptInvitation = async (invitationId: string, name: string) => {
+    setAcceptingId(invitationId);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/organizations/invitations/${invitationId}/accept`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to accept invitation");
+      }
+
+      toast.success(`Joined ${name}!`);
+      await Promise.all([
+        refreshInvitations(),
+        refreshOrganizations(),
+        refreshTeams(),
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to accept invitation";
+      toast.error(message);
+    } finally {
+      setAcceptingId(null);
+    }
   };
 
   if (loading) {
@@ -107,16 +140,18 @@ export default function OrganizationsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <InviteUserDialog 
+                    <InviteUserDialog
                       organizationId={org.id}
                       organizationName={org.name}
                     />
-                    <CreateTeamDialog 
+                    <CreateTeamDialog
                       organizationId={org.id}
                       organizationName={org.name}
                     />
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4" />
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`/dashboard/organizations/${org.id}/settings`}>
+                        <Settings className="h-4 w-4" />
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -173,13 +208,15 @@ export default function OrganizationsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <InviteUserDialog 
+                    <InviteUserDialog
                       teamId={team.id}
                       teamName={team.name}
                       organizationName={team.organization.name}
                     />
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4" />
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`/dashboard/team/${team.id}/settings`}>
+                        <Settings className="h-4 w-4" />
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -222,12 +259,23 @@ export default function OrganizationsPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline">
-                        Accept
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const name = invitation.team?.name || invitation.organization?.name || "workspace";
+                          handleAcceptInvitation(invitation.id, name);
+                        }}
+                        disabled={acceptingId === invitation.id}
+                        className="bg-orange-500 hover:bg-orange-600"
+                      >
+                        {acceptingId === invitation.id ? "Accepting..." : "Accept"}
                       </Button>
-                      <Button size="sm" variant="outline">
-                        Decline
-                      </Button>
+                      <DeclineInvitationDialog
+                        invitationId={invitation.id}
+                        organizationName={invitation.organization?.name}
+                        teamName={invitation.team?.name}
+                        onSuccess={() => refreshInvitations()}
+                      />
                     </div>
                   </div>
                 ))}

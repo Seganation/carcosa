@@ -26,6 +26,9 @@ import {
 } from "lucide-react";
 import { bucketsAPI, type Bucket } from "../../../../lib/buckets-api";
 import { BucketSharingDialog } from "../../../../components/dashboard/bucket-sharing-dialog";
+import { EditBucketDialog } from "../../../../components/dashboard/edit-bucket-dialog";
+import { DeleteBucketDialog } from "../../../../components/dashboard/delete-bucket-dialog";
+import { RotateBucketCredentialsDialog } from "../../../../components/dashboard/rotate-bucket-credentials-dialog";
 import { toast } from "react-hot-toast";
 
 export default function BucketDetailsPage() {
@@ -171,10 +174,28 @@ export default function BucketDetailsPage() {
             )}
             Test Connection
           </Button>
+          <EditBucketDialog
+            bucket={bucket}
+            onSuccess={loadBucket}
+          />
+          <RotateBucketCredentialsDialog
+            bucket={bucket}
+            onSuccess={loadBucket}
+          />
           <Button onClick={() => setSharingDialogOpen(true)}>
             <Share2 className="h-4 w-4 mr-2" />
             Manage Sharing
           </Button>
+          <DeleteBucketDialog
+            bucket={bucket}
+            onSuccess={() => router.push("/dashboard/buckets")}
+            trigger={
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            }
+          />
         </div>
       </div>
 

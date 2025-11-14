@@ -119,6 +119,13 @@ class ProjectsAPI {
       method: "DELETE",
     });
   }
+
+  async transfer(id: string, newTeamId: string): Promise<{ project: Project; message: string }> {
+    return this.request(`/api/v1/projects/${id}/transfer`, {
+      method: "POST",
+      body: JSON.stringify({ newTeamId }),
+    });
+  }
 }
 
 export const projectsAPI = new ProjectsAPI();

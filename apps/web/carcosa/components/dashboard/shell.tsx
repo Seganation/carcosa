@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { DashboardHeader } from "./header";
 import { DashboardSidebar } from "./sidebar";
 import { AppSidebar } from "./app-sidebar";
+import { InvitationsBanner } from "./invitations-banner";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -17,25 +18,27 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Container for full-width layout */}
       <div className="flex w-full">
-        {/* Sidebar */}
-        <div className="w-64 border-r border-border bg-background h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto">
+        {/* Sidebar - hidden on mobile (md: and up) */}
+        <aside className="hidden md:block w-64 border-r border-border bg-background h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto">
           {isAppRoute ? <AppSidebar /> : <DashboardSidebar />}
-        </div>
+        </aside>
 
         {/* Main content area - full width */}
-        <div className="flex-1">
+        <main className="flex-1 min-w-0">
           {isAppRoute ? (
             // App routes: centered content with proper padding
-            <div className="max-w-4xl mx-auto px-6 py-8">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+              <InvitationsBanner />
               {children}
             </div>
           ) : (
             // Dashboard routes: full-width content
-            <div className="px-6 py-8">
+            <div className="px-4 sm:px-6 py-6 sm:py-8">
+              <InvitationsBanner />
               {children}
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );

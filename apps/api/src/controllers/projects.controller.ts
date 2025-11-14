@@ -194,7 +194,7 @@ export async function deleteProject(req: Request, res: Response) {
   try {
     const userId = requireUserId(req);
     const projectId = requireParam(req.params, 'id');
-    
+
     await projectsService.delete(projectId, userId);
     res.json({ ok: true });
   } catch (error) {
@@ -208,6 +208,41 @@ export async function deleteProject(req: Request, res: Response) {
     }
     console.error("Delete project error:", error);
     res.status(500).json({ error: "project_deletion_failed" });
+  }
+}
+
+export async function transferProject(req: Request, res: Response) {
+  try {
+    const userId = requireUserId(req);
+    const projectId = requireParam(req.params, 'id');
+    const { newTeamId } = req.body;
+
+    if (!newTeamId) {
+      return res.status(400).json({ error: "new_team_id_required" });
+    }
+
+    const project = await projectsService.transferProject(projectId, newTeamId, userId);
+    res.json({ project, message: "Project transferred successfully" });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "project_not_found") {
+        return res.status(404).json({ error: "project_not_found" });
+      }
+      if (error.message === "insufficient_permissions") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+      if (error.message === "new_team_access_denied") {
+        return res.status(403).json({ error: "new_team_access_denied" });
+      }
+      if (error.message === "new_team_no_bucket_access") {
+        return res.status(400).json({ error: "new_team_no_bucket_access" });
+      }
+      if (error.message === "slug_already_exists_in_new_team") {
+        return res.status(400).json({ error: "slug_already_exists_in_new_team" });
+      }
+    }
+    console.error("Transfer project error:", error);
+    res.status(500).json({ error: "project_transfer_failed" });
   }
 }
 

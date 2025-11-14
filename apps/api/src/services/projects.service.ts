@@ -506,6 +506,116 @@ export class ProjectsService {
       take: 100, // Last 100 entries
     });
   }
+
+  async transferProject(projectId: string, newTeamId: string, userId: string) {
+    // Get project and verify access
+    const project = await this.getById(projectId, userId);
+    if (!project) {
+      throw new Error("project_not_found");
+    }
+
+    // Check if user has permission to transfer (must be owner or admin of current team)
+    if (project.ownerId !== userId) {
+      const currentTeamMember = await prisma.teamMember.findFirst({
+        where: {
+          teamId: project.teamId!,
+          userId,
+          role: {
+            in: ["OWNER", "ADMIN"],
+          },
+        },
+      });
+
+      if (!currentTeamMember) {
+        throw new Error("insufficient_permissions");
+      }
+    }
+
+    // Verify user has access to the new team (must be owner or admin)
+    const newTeamMember = await prisma.teamMember.findFirst({
+      where: {
+        teamId: newTeamId,
+        userId,
+        role: {
+          in: ["OWNER", "ADMIN"],
+        },
+      },
+    });
+
+    if (!newTeamMember) {
+      throw new Error("new_team_access_denied");
+    }
+
+    // Verify the new team has access to the project's bucket
+    const bucket = await prisma.bucket.findFirst({
+      where: {
+        id: project.bucketId,
+        OR: [
+          // New team owns the bucket
+          { ownerTeamId: newTeamId },
+          // New team has access to the bucket
+          {
+            sharedTeams: {
+              some: {
+                teamId: newTeamId,
+                accessLevel: { in: ["READ_WRITE", "ADMIN"] }
+              }
+            }
+          },
+        ],
+      },
+    });
+
+    if (!bucket) {
+      throw new Error("new_team_no_bucket_access");
+    }
+
+    // Check if a project with the same slug already exists in the new team
+    const existingProject = await prisma.project.findFirst({
+      where: {
+        slug: project.slug,
+        teamId: newTeamId,
+      },
+    });
+
+    if (existingProject) {
+      throw new Error("slug_already_exists_in_new_team");
+    }
+
+    // Transfer the project
+    return prisma.project.update({
+      where: { id: projectId },
+      data: {
+        teamId: newTeamId,
+      },
+      include: {
+        bucket: {
+          select: {
+            id: true,
+            name: true,
+            provider: true,
+            bucketName: true,
+            region: true,
+            status: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 }
 
 export const projectsService = new ProjectsService();

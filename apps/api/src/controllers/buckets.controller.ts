@@ -4,18 +4,11 @@ import { prisma } from "@carcosa/database";
 import { encryptWithKey } from "../crypto.js";
 import Env from "../config/env.js";
 import { bucketsService } from "../services/buckets.service.js";
-
-const createBucketSchema = z.object({
-  name: z.string().min(1, "Bucket name is required"),
-  provider: z.enum(["s3", "r2"], {
-    errorMap: () => ({ message: "Provider must be s3 or r2" }),
-  }),
-  bucketName: z.string().min(1, "Bucket name is required"),
-  region: z.string().optional(),
-  endpoint: z.string().optional(),
-  accessKeyId: z.string().min(1, "Access Key ID is required"),
-  secretAccessKey: z.string().min(1, "Secret Access Key is required"),
-});
+import {
+  createBucketSchema,
+  updateBucketSchema,
+  rotateBucketCredentialsSchema,
+} from "../validations/buckets.validation.js";
 
 // Use global AuthRequest type
 
@@ -407,5 +400,99 @@ export async function getTeamBuckets(req: Request, res: Response) {
     }
     console.error("Get team buckets error:", error);
     res.status(500).json({ error: "failed_to_get_team_buckets" });
+  }
+}
+
+// Update bucket (name, region, endpoint)
+export async function updateBucket(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const bucketId = req.params.id;
+    if (!bucketId) {
+      return res.status(400).json({ error: "bucket_id_required" });
+    }
+
+    const body = updateBucketSchema.parse(req.body);
+
+    // Ensure at least one field is being updated
+    if (!body.name && body.region === undefined && body.endpoint === undefined) {
+      return res.status(400).json({ error: "no_fields_to_update" });
+    }
+
+    const bucket = await bucketsService.updateBucket(bucketId, body, req.userId);
+    res.json({ bucket });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "bucket_not_found") {
+        return res.status(404).json({ error: "bucket_not_found" });
+      }
+      if (error.message === "insufficient_permissions") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+    }
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: "validation_failed",
+        details: error.errors,
+      });
+    }
+    console.error("Update bucket error:", error);
+    res.status(500).json({ error: "bucket_update_failed" });
+  }
+}
+
+// Rotate bucket credentials
+export async function rotateBucketCredentials(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const bucketId = req.params.id;
+    if (!bucketId) {
+      return res.status(400).json({ error: "bucket_id_required" });
+    }
+
+    const body = rotateBucketCredentialsSchema.parse(req.body);
+    const env = Env.parse(process.env);
+
+    // Encrypt the new credentials
+    const encryptedAccessKey = await encryptWithKey(
+      env.CREDENTIALS_ENCRYPTION_KEY,
+      body.accessKeyId
+    );
+    const encryptedSecretKey = await encryptWithKey(
+      env.CREDENTIALS_ENCRYPTION_KEY,
+      body.secretAccessKey
+    );
+
+    const bucket = await bucketsService.rotateBucketCredentials(
+      bucketId,
+      encryptedAccessKey,
+      encryptedSecretKey,
+      req.userId
+    );
+
+    res.json({ bucket, message: "Credentials rotated successfully. Please validate the connection." });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "bucket_not_found") {
+        return res.status(404).json({ error: "bucket_not_found" });
+      }
+      if (error.message === "insufficient_permissions") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+    }
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: "validation_failed",
+        details: error.errors,
+      });
+    }
+    console.error("Rotate bucket credentials error:", error);
+    res.status(500).json({ error: "credential_rotation_failed" });
   }
 }

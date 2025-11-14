@@ -8,10 +8,16 @@ const router = Router();
 router.get("/buckets", authMiddleware, bucketsController.list);
 router.get("/buckets/:id", authMiddleware, bucketsController.get);
 router.post("/buckets", authMiddleware, bucketsController.create);
+router.patch("/buckets/:id", authMiddleware, bucketsController.updateBucket);
 router.post(
   "/buckets/:id/validate",
   authMiddleware,
   bucketsController.validateCredentials
+);
+router.post(
+  "/buckets/:id/rotate-credentials",
+  authMiddleware,
+  bucketsController.rotateBucketCredentials
 );
 router.delete("/buckets/:id", authMiddleware, bucketsController.deleteBucket);
 

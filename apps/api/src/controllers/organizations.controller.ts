@@ -271,3 +271,428 @@ export async function listPendingInvitations(req: Request, res: Response) {
     res.status(500).json({ error: "failed_to_list_invitations" });
   }
 }
+
+export async function revokeInvitation(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { invitationId } = req.params;
+    if (!invitationId) {
+      return res.status(400).json({ error: "missing_invitation_id" });
+    }
+
+    await organizationsService.revokeInvitation(invitationId, req.userId);
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Invitation not found") {
+        return res.status(404).json({ error: "invitation_not_found" });
+      }
+      if (error.message === "Insufficient permissions to revoke invitation") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+    }
+    console.error("Revoke invitation error:", error);
+    res.status(500).json({ error: "failed_to_revoke_invitation" });
+  }
+}
+
+export async function declineInvitation(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { invitationId } = req.params;
+    if (!invitationId) {
+      return res.status(400).json({ error: "missing_invitation_id" });
+    }
+
+    await organizationsService.declineInvitation(invitationId, req.userId);
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Invitation not found") {
+        return res.status(404).json({ error: "invitation_not_found" });
+      }
+      if (error.message === "This invitation is not for you") {
+        return res.status(403).json({ error: "not_your_invitation" });
+      }
+      if (error.message === "Invitation is no longer pending") {
+        return res.status(400).json({ error: "invitation_not_pending" });
+      }
+      if (error.message === "Invitation has expired") {
+        return res.status(400).json({ error: "invitation_expired" });
+      }
+    }
+    console.error("Decline invitation error:", error);
+    res.status(500).json({ error: "failed_to_decline_invitation" });
+  }
+}
+
+export async function resendInvitation(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { invitationId } = req.params;
+    if (!invitationId) {
+      return res.status(400).json({ error: "missing_invitation_id" });
+    }
+
+    const invitation = await organizationsService.resendInvitation(invitationId, req.userId);
+    res.json({ invitation });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Invitation not found") {
+        return res.status(404).json({ error: "invitation_not_found" });
+      }
+      if (error.message === "Insufficient permissions to resend invitation") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+    }
+    console.error("Resend invitation error:", error);
+    res.status(500).json({ error: "failed_to_resend_invitation" });
+  }
+}
+
+// ============================================
+// ORGANIZATION UPDATE & DELETE
+// ============================================
+
+const updateOrganizationSchema = z.object({
+  name: z.string().min(1).optional(),
+  slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
+  description: z.string().optional(),
+  logo: z.string().url().optional(),
+});
+
+export async function updateOrganization(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "missing_organization_id" });
+    }
+
+    const body = updateOrganizationSchema.parse(req.body);
+    const organization = await organizationsService.updateOrganization(id, body, req.userId);
+    res.json({ organization });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Insufficient permissions to update organization") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+      if (error.message.includes("Unique constraint")) {
+        return res.status(400).json({ error: "slug_already_exists" });
+      }
+    }
+    console.error("Update organization error:", error);
+    res.status(500).json({ error: "organization_update_failed" });
+  }
+}
+
+export async function deleteOrganization(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "missing_organization_id" });
+    }
+
+    const result = await organizationsService.deleteOrganization(id, req.userId);
+    res.json(result);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Organization not found or insufficient permissions") {
+        return res.status(404).json({ error: "organization_not_found_or_forbidden" });
+      }
+      if (error.message.includes("Cannot delete organization with")) {
+        return res.status(400).json({ error: "organization_has_active_projects", message: error.message });
+      }
+    }
+    console.error("Delete organization error:", error);
+    res.status(500).json({ error: "organization_deletion_failed" });
+  }
+}
+
+// ============================================
+// ORGANIZATION MEMBER MANAGEMENT
+// ============================================
+
+export async function listOrganizationMembers(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "missing_organization_id" });
+    }
+
+    const members = await organizationsService.listOrganizationMembers(id, req.userId);
+    res.json({ members });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Access denied to this organization") {
+        return res.status(403).json({ error: "access_denied" });
+      }
+    }
+    console.error("List organization members error:", error);
+    res.status(500).json({ error: "failed_to_list_members" });
+  }
+}
+
+const updateMemberRoleSchema = z.object({
+  role: z.enum(["OWNER", "ADMIN", "MEMBER", "VIEWER"]),
+});
+
+export async function updateOrganizationMemberRole(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id, memberId } = req.params;
+    if (!id || !memberId) {
+      return res.status(400).json({ error: "missing_required_parameters" });
+    }
+
+    const body = updateMemberRoleSchema.parse(req.body);
+    const member = await organizationsService.updateOrganizationMemberRole(
+      id,
+      memberId,
+      body.role as any,
+      req.userId
+    );
+    res.json({ member });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Insufficient permissions to update member roles") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+      if (error.message === "Member not found in this organization") {
+        return res.status(404).json({ error: "member_not_found" });
+      }
+      if (error.message === "Cannot change the organization owner's role") {
+        return res.status(400).json({ error: "cannot_change_owner_role" });
+      }
+      if (error.message.includes("Only the current owner can assign the OWNER role")) {
+        return res.status(403).json({ error: "only_owner_can_assign_owner_role" });
+      }
+    }
+    console.error("Update organization member role error:", error);
+    res.status(500).json({ error: "member_role_update_failed" });
+  }
+}
+
+export async function removeOrganizationMember(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id, memberId } = req.params;
+    if (!id || !memberId) {
+      return res.status(400).json({ error: "missing_required_parameters" });
+    }
+
+    const result = await organizationsService.removeOrganizationMember(id, memberId, req.userId);
+    res.json(result);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Insufficient permissions to remove members") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+      if (error.message === "Member not found in this organization") {
+        return res.status(404).json({ error: "member_not_found" });
+      }
+      if (error.message === "Cannot remove the organization owner") {
+        return res.status(400).json({ error: "cannot_remove_owner" });
+      }
+    }
+    console.error("Remove organization member error:", error);
+    res.status(500).json({ error: "member_removal_failed" });
+  }
+}
+
+// ============================================
+// TEAM UPDATE & DELETE
+// ============================================
+
+const updateTeamSchema = z.object({
+  name: z.string().min(1).optional(),
+  slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
+  description: z.string().optional(),
+});
+
+export async function updateTeam(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "missing_team_id" });
+    }
+
+    const body = updateTeamSchema.parse(req.body);
+    const team = await organizationsService.updateTeam(id, body, req.userId);
+    res.json({ team });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Team not found") {
+        return res.status(404).json({ error: "team_not_found" });
+      }
+      if (error.message === "Insufficient permissions to update team") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+      if (error.message.includes("Unique constraint")) {
+        return res.status(400).json({ error: "slug_already_exists" });
+      }
+    }
+    console.error("Update team error:", error);
+    res.status(500).json({ error: "team_update_failed" });
+  }
+}
+
+export async function deleteTeam(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "missing_team_id" });
+    }
+
+    const result = await organizationsService.deleteTeam(id, req.userId);
+    res.json(result);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Team not found") {
+        return res.status(404).json({ error: "team_not_found" });
+      }
+      if (error.message.includes("Insufficient permissions to delete team")) {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+      if (error.message.includes("Cannot delete team with")) {
+        return res.status(400).json({ error: "team_has_active_resources", message: error.message });
+      }
+    }
+    console.error("Delete team error:", error);
+    res.status(500).json({ error: "team_deletion_failed" });
+  }
+}
+
+// ============================================
+// TEAM MEMBER MANAGEMENT
+// ============================================
+
+export async function listTeamMembers(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "missing_team_id" });
+    }
+
+    const members = await organizationsService.listTeamMembers(id, req.userId);
+    res.json({ members });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Access denied to this team") {
+        return res.status(403).json({ error: "access_denied" });
+      }
+    }
+    console.error("List team members error:", error);
+    res.status(500).json({ error: "failed_to_list_members" });
+  }
+}
+
+export async function updateTeamMemberRole(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id, memberId } = req.params;
+    if (!id || !memberId) {
+      return res.status(400).json({ error: "missing_required_parameters" });
+    }
+
+    const body = updateMemberRoleSchema.parse(req.body);
+    const member = await organizationsService.updateTeamMemberRole(
+      id,
+      memberId,
+      body.role as any,
+      req.userId
+    );
+    res.json({ member });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Team not found") {
+        return res.status(404).json({ error: "team_not_found" });
+      }
+      if (error.message === "Insufficient permissions to update member roles") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+      if (error.message === "Member not found in this team") {
+        return res.status(404).json({ error: "member_not_found" });
+      }
+      if (error.message.includes("Only the current team owner can assign the OWNER role")) {
+        return res.status(403).json({ error: "only_owner_can_assign_owner_role" });
+      }
+    }
+    console.error("Update team member role error:", error);
+    res.status(500).json({ error: "member_role_update_failed" });
+  }
+}
+
+export async function removeTeamMember(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { id, memberId } = req.params;
+    if (!id || !memberId) {
+      return res.status(400).json({ error: "missing_required_parameters" });
+    }
+
+    const result = await organizationsService.removeTeamMember(id, memberId, req.userId);
+    res.json({ result });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Team not found") {
+        return res.status(404).json({ error: "team_not_found" });
+      }
+      if (error.message === "Insufficient permissions to remove members") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+      if (error.message === "Member not found in this team") {
+        return res.status(404).json({ error: "member_not_found" });
+      }
+      if (error.message === "Cannot remove the only team owner") {
+        return res.status(400).json({ error: "cannot_remove_only_owner" });
+      }
+    }
+    console.error("Remove team member error:", error);
+    res.status(500).json({ error: "member_removal_failed" });
+  }
+}

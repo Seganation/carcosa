@@ -15,6 +15,11 @@ router.post(
   authMiddleware,
   Projects.validateCredentials
 );
+router.post(
+  "/projects/:id/transfer",
+  authMiddleware,
+  Projects.transferProject
+);
 router.delete("/projects/:id", authMiddleware, Projects.deleteProject);
 
 // Team-scoped resource routes
