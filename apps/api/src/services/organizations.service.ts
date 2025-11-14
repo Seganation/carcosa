@@ -483,6 +483,206 @@ export class OrganizationsService {
     });
   }
 
+  async revokeInvitation(invitationId: string, userId: string) {
+    const invitation = await prisma.invitation.findUnique({
+      where: { id: invitationId },
+      include: {
+        team: {
+          select: {
+            organizationId: true,
+          },
+        },
+        organization: true,
+      },
+    });
+
+    if (!invitation) {
+      throw new Error("Invitation not found");
+    }
+
+    // Check if user has permission to revoke (must be the inviter or org/team admin)
+    const isInviter = invitation.invitedBy === userId;
+
+    let hasPermission = isInviter;
+
+    // Check if user is org admin/owner
+    if (invitation.organizationId) {
+      const orgMembership = await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: invitation.organizationId,
+          userId,
+          role: {
+            in: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+          },
+        },
+      });
+      if (orgMembership) hasPermission = true;
+    }
+
+    // Check if user is team admin/owner
+    if (invitation.teamId) {
+      const teamMembership = await prisma.teamMember.findFirst({
+        where: {
+          teamId: invitation.teamId,
+          userId,
+          role: {
+            in: [TeamRole.OWNER, TeamRole.ADMIN],
+          },
+        },
+      });
+      if (teamMembership) hasPermission = true;
+    }
+
+    if (!hasPermission) {
+      throw new Error("Insufficient permissions to revoke invitation");
+    }
+
+    // Delete the invitation
+    await prisma.invitation.delete({
+      where: { id: invitationId },
+    });
+
+    return { ok: true };
+  }
+
+  async declineInvitation(invitationId: string, userId: string) {
+    const invitation = await prisma.invitation.findUnique({
+      where: { id: invitationId },
+    });
+
+    if (!invitation) {
+      throw new Error("Invitation not found");
+    }
+
+    // Get user's email
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    if (!user || !user.email) {
+      throw new Error("User not found");
+    }
+
+    // Verify invitation is for this user
+    if (invitation.email !== user.email) {
+      throw new Error("This invitation is not for you");
+    }
+
+    // Check if invitation is still valid
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new Error("Invitation is no longer pending");
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      throw new Error("Invitation has expired");
+    }
+
+    // Update invitation status to DECLINED
+    await prisma.invitation.update({
+      where: { id: invitationId },
+      data: { status: InvitationStatus.DECLINED },
+    });
+
+    return { ok: true };
+  }
+
+  async resendInvitation(invitationId: string, userId: string) {
+    const invitation = await prisma.invitation.findUnique({
+      where: { id: invitationId },
+      include: {
+        team: {
+          select: {
+            organizationId: true,
+          },
+        },
+        organization: true,
+      },
+    });
+
+    if (!invitation) {
+      throw new Error("Invitation not found");
+    }
+
+    // Check if user has permission to resend (must be the inviter or org/team admin)
+    const isInviter = invitation.invitedBy === userId;
+
+    let hasPermission = isInviter;
+
+    // Check if user is org admin/owner
+    if (invitation.organizationId) {
+      const orgMembership = await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: invitation.organizationId,
+          userId,
+          role: {
+            in: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+          },
+        },
+      });
+      if (orgMembership) hasPermission = true;
+    }
+
+    // Check if user is team admin/owner
+    if (invitation.teamId) {
+      const teamMembership = await prisma.teamMember.findFirst({
+        where: {
+          teamId: invitation.teamId,
+          userId,
+          role: {
+            in: [TeamRole.OWNER, TeamRole.ADMIN],
+          },
+        },
+      });
+      if (teamMembership) hasPermission = true;
+    }
+
+    if (!hasPermission) {
+      throw new Error("Insufficient permissions to resend invitation");
+    }
+
+    // Update invitation with new expiry date
+    const updatedInvitation = await prisma.invitation.update({
+      where: { id: invitationId },
+      data: {
+        status: InvitationStatus.PENDING,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        organization: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        invitedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // TODO: Send email with invitation link
+    console.log(`Resent invitation to ${invitation.email}`);
+
+    return updatedInvitation;
+  }
+
   // ============================================
   // ORGANIZATION UPDATE & DELETE
   // ============================================

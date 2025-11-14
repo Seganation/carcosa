@@ -272,6 +272,93 @@ export async function listPendingInvitations(req: Request, res: Response) {
   }
 }
 
+export async function revokeInvitation(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { invitationId } = req.params;
+    if (!invitationId) {
+      return res.status(400).json({ error: "missing_invitation_id" });
+    }
+
+    await organizationsService.revokeInvitation(invitationId, req.userId);
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Invitation not found") {
+        return res.status(404).json({ error: "invitation_not_found" });
+      }
+      if (error.message === "Insufficient permissions to revoke invitation") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+    }
+    console.error("Revoke invitation error:", error);
+    res.status(500).json({ error: "failed_to_revoke_invitation" });
+  }
+}
+
+export async function declineInvitation(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { invitationId } = req.params;
+    if (!invitationId) {
+      return res.status(400).json({ error: "missing_invitation_id" });
+    }
+
+    await organizationsService.declineInvitation(invitationId, req.userId);
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Invitation not found") {
+        return res.status(404).json({ error: "invitation_not_found" });
+      }
+      if (error.message === "This invitation is not for you") {
+        return res.status(403).json({ error: "not_your_invitation" });
+      }
+      if (error.message === "Invitation is no longer pending") {
+        return res.status(400).json({ error: "invitation_not_pending" });
+      }
+      if (error.message === "Invitation has expired") {
+        return res.status(400).json({ error: "invitation_expired" });
+      }
+    }
+    console.error("Decline invitation error:", error);
+    res.status(500).json({ error: "failed_to_decline_invitation" });
+  }
+}
+
+export async function resendInvitation(req: Request, res: Response) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { invitationId } = req.params;
+    if (!invitationId) {
+      return res.status(400).json({ error: "missing_invitation_id" });
+    }
+
+    const invitation = await organizationsService.resendInvitation(invitationId, req.userId);
+    res.json({ invitation });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Invitation not found") {
+        return res.status(404).json({ error: "invitation_not_found" });
+      }
+      if (error.message === "Insufficient permissions to resend invitation") {
+        return res.status(403).json({ error: "insufficient_permissions" });
+      }
+    }
+    console.error("Resend invitation error:", error);
+    res.status(500).json({ error: "failed_to_resend_invitation" });
+  }
+}
+
 // ============================================
 // ORGANIZATION UPDATE & DELETE
 // ============================================

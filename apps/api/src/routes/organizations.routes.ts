@@ -21,6 +21,9 @@ import {
   inviteUser,
   acceptInvitation,
   listPendingInvitations,
+  revokeInvitation,
+  declineInvitation,
+  resendInvitation,
 } from "../controllers/organizations.controller.js";
 
 const router = Router();
@@ -47,8 +50,11 @@ router.delete("/teams/:id/members/:memberId", removeTeamMember);
 
 // Invitation routes (must come before :id route)
 router.post("/invite", inviteUser);
-router.post("/invitations/:invitationId/accept", acceptInvitation);
 router.get("/invitations", listPendingInvitations);
+router.post("/invitations/:invitationId/accept", acceptInvitation);
+router.post("/invitations/:invitationId/decline", declineInvitation);
+router.delete("/invitations/:invitationId", revokeInvitation);
+router.post("/invitations/:invitationId/resend", resendInvitation);
 
 // Organization by ID routes (must come after more specific routes)
 router.get("/:id", getOrganization);
