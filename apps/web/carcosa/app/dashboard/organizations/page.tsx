@@ -107,16 +107,18 @@ export default function OrganizationsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <InviteUserDialog 
+                    <InviteUserDialog
                       organizationId={org.id}
                       organizationName={org.name}
                     />
-                    <CreateTeamDialog 
+                    <CreateTeamDialog
                       organizationId={org.id}
                       organizationName={org.name}
                     />
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4" />
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`/dashboard/organizations/${org.id}/settings`}>
+                        <Settings className="h-4 w-4" />
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -173,13 +175,15 @@ export default function OrganizationsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <InviteUserDialog 
+                    <InviteUserDialog
                       teamId={team.id}
                       teamName={team.name}
                       organizationName={team.organization.name}
                     />
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4" />
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`/dashboard/team/${team.id}/settings`}>
+                        <Settings className="h-4 w-4" />
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
