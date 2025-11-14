@@ -156,19 +156,22 @@ export function DashboardHeader() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-6xl">
         {/* Left side - Logo and Breadcrumbs */}
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-xl font-bold text-orange-500">
+        <div className="flex items-center gap-2 sm:gap-4 overflow-hidden flex-1 min-w-0">
+          <Link href="/" className="text-xl font-bold text-orange-500 shrink-0">
             Carcosa
           </Link>
 
           {/* Workspace Switcher */}
-          {teams.length > 0 && <WorkspaceSwitcher />}
+          <div className="shrink-0">
+            {teams.length > 0 && <WorkspaceSwitcher />}
+          </div>
 
+          {/* Breadcrumbs - hide on small screens */}
           {breadcrumbs.length > 0 && (
-            <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+            <nav className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground overflow-x-auto" aria-label="Breadcrumb">
               {breadcrumbs.map((crumb, index) => (
-                <div key={crumb.href} className="flex items-center gap-2">
-                  {index > 0 && <ChevronRight className="h-3 w-3" />}
+                <div key={crumb.href} className="flex items-center gap-2 shrink-0">
+                  {index > 0 && <ChevronRight className="h-3 w-3" aria-hidden="true" />}
                   <Link
                     href={crumb.href}
                     className={`
@@ -179,9 +182,10 @@ export function DashboardHeader() {
                       ${(crumb as any).isOrg ? "text-blue-600 dark:text-blue-400" : ""}
                       ${(crumb as any).isTeam ? "text-green-600 dark:text-green-400" : ""}
                     `}
+                    aria-current={index === breadcrumbs.length - 1 ? "page" : undefined}
                   >
-                    {(crumb as any).isOrg && <Building2 className="h-3 w-3 mr-1 inline" />}
-                    {(crumb as any).isTeam && <Users className="h-3 w-3 mr-1 inline" />}
+                    {(crumb as any).isOrg && <Building2 className="h-3 w-3 mr-1 inline" aria-hidden="true" />}
+                    {(crumb as any).isTeam && <Users className="h-3 w-3 mr-1 inline" aria-hidden="true" />}
                     {crumb.label}
                   </Link>
                 </div>
@@ -191,20 +195,25 @@ export function DashboardHeader() {
         </div>
 
         {/* Right side - Theme toggle and User avatar */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label="Toggle theme"
           >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" aria-hidden="true" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" aria-hidden="true" />
             <span className="sr-only">Toggle theme</span>
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Button
+                variant="ghost"
+                className="relative h-8 w-8 rounded-full"
+                aria-label="User menu"
+              >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="" alt={user?.name || "User"} />
                   <AvatarFallback className="bg-orange-500 text-white">
