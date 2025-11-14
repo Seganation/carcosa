@@ -110,10 +110,10 @@ export function CreateApiKeyDialog({
   if (newlyCreatedKey) {
     return (
       <Dialog open={!!newlyCreatedKey} onOpenChange={() => setNewlyCreatedKey(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-green-600" aria-hidden="true" />
               API Key Created
             </DialogTitle>
             <DialogDescription>
@@ -130,17 +130,19 @@ export function CreateApiKeyDialog({
                   value={newlyCreatedKey}
                   readOnly
                   className="font-mono text-sm"
+                  aria-label="Your new API key"
                 />
                 <Button
                   onClick={() => copyToClipboard(newlyCreatedKey)}
                   size="icon"
                   variant="outline"
+                  aria-label="Copy API key to clipboard"
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3" role="alert">
               <p className="text-sm text-yellow-800">
                 <strong>Warning:</strong> Store this key securely. You won't be able
                 to view it again.
@@ -160,12 +162,12 @@ export function CreateApiKeyDialog({
       <DialogTrigger asChild>
         {trigger || (
           <Button>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
             Create API Key
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[95vw] sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Create New API Key</DialogTitle>
           <DialogDescription>
@@ -182,8 +184,9 @@ export function CreateApiKeyDialog({
                 setFormData({ ...formData, label: e.target.value })
               }
               placeholder="e.g., Production Key, Development Key"
+              aria-describedby="apiKeyLabelHelp"
             />
-            <p className="text-xs text-muted-foreground">
+            <p id="apiKeyLabelHelp" className="text-xs text-muted-foreground">
               A friendly name to help you identify this key
             </p>
           </div>
@@ -196,7 +199,7 @@ export function CreateApiKeyDialog({
                 setFormData({ ...formData, permissions: value.split(",") })
               }
             >
-              <SelectTrigger id="apiKeyPermissions">
+              <SelectTrigger id="apiKeyPermissions" aria-describedby="apiKeyPermissionsHelp">
                 <SelectValue placeholder="Select permissions" />
               </SelectTrigger>
               <SelectContent>
@@ -210,12 +213,12 @@ export function CreateApiKeyDialog({
                 </SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
+            <p id="apiKeyPermissionsHelp" className="text-xs text-muted-foreground">
               Controls what actions this API key can perform
             </p>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -228,7 +231,7 @@ export function CreateApiKeyDialog({
             <Button type="submit" className="flex-1" disabled={isCreating}>
               {isCreating ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                   Creating...
                 </>
               ) : (

@@ -76,9 +76,13 @@ export function WorkspaceSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="h-9 px-3 min-w-[200px] justify-between">
+        <Button
+          variant="outline"
+          className="h-9 px-3 min-w-[160px] sm:min-w-[200px] justify-between"
+          aria-label={`Current workspace: ${currentTeam.name} in ${getWorkspaceLabel()}`}
+        >
           <div className="flex items-center gap-2 overflow-hidden">
-            <Building2 className="h-4 w-4 shrink-0" />
+            <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
             <div className="flex flex-col items-start overflow-hidden">
               <span className="text-sm font-medium truncate">{currentTeam.name}</span>
               <span className="text-xs text-muted-foreground truncate">
@@ -86,10 +90,10 @@ export function WorkspaceSwitcher() {
               </span>
             </div>
           </div>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[280px]" align="start">
+      <DropdownMenuContent className="w-[280px] sm:w-[320px]" align="start">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">Switch Workspace</p>
@@ -108,9 +112,9 @@ export function WorkspaceSwitcher() {
             <DropdownMenuGroup key={organization.id}>
               <DropdownMenuLabel className="flex items-center gap-2 py-2">
                 {isPersonal ? (
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 ) : (
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 )}
                 <span className="font-medium">{workspaceName}</span>
               </DropdownMenuLabel>
@@ -124,14 +128,16 @@ export function WorkspaceSwitcher() {
                     className={`cursor-pointer pl-8 ${
                       isSelected ? "bg-accent" : ""
                     }`}
+                    role="menuitemradio"
+                    aria-checked={isSelected}
                   >
                     <div className="flex items-center justify-between w-full">
                       <div className="flex items-center space-x-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         <span className="text-sm">{team.name}</span>
                       </div>
                       {isSelected && (
-                        <Check className="h-4 w-4 text-primary" />
+                        <Check className="h-4 w-4 text-primary" aria-hidden="true" />
                       )}
                     </div>
                   </DropdownMenuItem>
