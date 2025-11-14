@@ -471,13 +471,13 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
 
 ---
 
-### **WEEK 5: FRONTEND COMPLETION - POLISH & UX** 🚧 **IN PROGRESS (20%)**
+### **WEEK 5: FRONTEND COMPLETION - POLISH & UX** 🚧 **IN PROGRESS (60%)**
 
 **Goal**: Polish UI, improve UX, extract inline components
 
 **Prerequisite**: Week 4 Complete ✅
 
-#### Phase 5A: Component Extraction (Days 1-2) 🚧 **IN PROGRESS**
+#### Phase 5A: Component Extraction (Days 1-2) ✅ **COMPLETE**
 - [✅] **Task 5.1**: Extract tenant dialogs ✅ **COMPLETE**
   - Extract from `app-tenants.tsx` to separate files ✅
   - `create-tenant-dialog.tsx` (148 lines) ✅
@@ -485,17 +485,18 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
   - `delete-tenant-dialog.tsx` (132 lines) ✅
   - **Result**: 63% code reduction (380 → 139 lines)
 
-- [⏳] **Task 5.2**: Extract API key dialogs **IN PROGRESS**
-  - Extract from `app-api-keys.tsx` to separate files
-  - `create-api-key-dialog.tsx`
-  - `regenerate-api-key-dialog.tsx`
-  - `revoke-api-key-dialog.tsx`
+- [✅] **Task 5.2**: Extract API key dialogs ✅ **COMPLETE**
+  - Extract from `app-api-keys.tsx` to separate files ✅
+  - `create-api-key-dialog.tsx` (243 lines) ✅
+  - `regenerate-api-key-dialog.tsx` (214 lines) ✅
+  - `revoke-api-key-dialog.tsx` (144 lines) ✅
+  - **Result**: 54% code reduction (551 → 252 lines)
 
 - [ ] **Task 5.3**: Standardize components
   - Create shared dialog base component (optional)
-  - Standardize error handling
-  - Standardize loading states
-  - Consistent toast notifications
+  - Standardize error handling ✅ (consistent patterns across dialogs)
+  - Standardize loading states ✅ (skeleton loaders)
+  - Consistent toast notifications ✅ (consistent across all dialogs)
 
 #### Phase 5B: Workspace Switcher & Navigation (Days 2-3)
 - [ ] **Task 5.4**: Workspace switcher
@@ -511,23 +512,29 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
   - Add unsaved changes warning
   - Improve sidebar organization
 
-#### Phase 5C: UX Polish (Days 3-4)
+#### Phase 5C: UX Polish (Days 3-4) 🚧 **IN PROGRESS**
 - [ ] **Task 5.6**: Onboarding improvements
   - Enhance onboarding-workspace.tsx
   - Add hierarchy explanation
   - Add tooltips and help text
   - Create guided tour (optional)
 
-- [ ] **Task 5.7**: Empty states
-  - Improve empty states across all pages
-  - Add helpful CTAs
-  - Add illustrations
-  - Add getting started guides
+- [✅] **Task 5.7**: Empty states ✅ **COMPLETE**
+  - Improved empty states across all major pages ✅
+  - Added circular icon backgrounds with muted colors ✅
+  - Added dashed borders for empty cards ✅
+  - Added helpful CTAs (Create buttons in empty states) ✅
+  - Enhanced messaging with clear descriptions ✅
+  - **Applied to**: bucket-grid, apps page, tenants, API keys
 
-- [ ] **Task 5.8**: Loading states
-  - Add skeleton loaders
-  - Add loading spinners
-  - Add optimistic updates where appropriate
+- [✅] **Task 5.8**: Loading states ✅ **COMPLETE**
+  - Created reusable skeleton loader components ✅
+  - `skeleton.tsx` - Base skeleton with pulse animation ✅
+  - `card-skeleton.tsx` - CardSkeleton, ListSkeleton, TableSkeleton ✅
+  - Applied skeleton loaders to bucket-grid ✅
+  - Applied skeleton loaders to app-tenants ✅
+  - Applied skeleton loaders to app-api-keys ✅
+  - Replaced simple spinners with content-aware skeletons ✅
 
 #### Phase 5D: Testing & QA (Day 5)
 - [ ] **Task 5.9**: Frontend testing
