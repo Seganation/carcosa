@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { CardSkeleton } from "../ui/card-skeleton";
 import {
   Database,
   CheckCircle,
@@ -16,6 +17,7 @@ import {
   Users,
   Building2,
   Share2,
+  Plus,
 } from "lucide-react";
 import { bucketsAPI, type Bucket } from "../../lib/buckets-api";
 import { toast } from "react-hot-toast";
@@ -77,11 +79,7 @@ export function BucketGrid({ buckets, loading, onUpdate, onCreateClick }: Bucket
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
+    return <CardSkeleton count={3} showHeader showFooter />;
   }
 
   if (!buckets || buckets.length === 0) {

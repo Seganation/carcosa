@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
+import { ListSkeleton } from "../ui/card-skeleton";
 import { Key, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { CreateApiKeyDialog } from "./create-api-key-dialog";
@@ -87,8 +88,26 @@ export function AppApiKeys({ appId }: AppApiKeysProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">API Keys</h2>
+            <p className="text-sm text-muted-foreground">
+              Manage API keys for programmatic access to your project
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              API Keys
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ListSkeleton count={3} />
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
+import { CardSkeleton } from "../ui/card-skeleton";
 import { Users, Loader2 } from "lucide-react";
 import { CreateTenantDialog } from "./create-tenant-dialog";
 import { EditTenantDialog } from "./edit-tenant-dialog";
@@ -53,8 +54,16 @@ export function AppTenants({ projectId, projectSlug }: AppTenantsProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Tenants</h2>
+            <p className="text-sm text-muted-foreground">
+              Manage tenants for your multi-tenant project
+            </p>
+          </div>
+        </div>
+        <CardSkeleton count={3} showHeader showFooter />
       </div>
     );
   }
