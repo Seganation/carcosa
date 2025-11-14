@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Moon, Sun, ChevronRight, LogOut, Building2, Users, ChevronDown } from "lucide-react";
+import { Moon, Sun, ChevronRight, LogOut, Building2, Users } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/auth-context";
 import { useTeam } from "../../contexts/team-context";
 import { projectsAPI } from "../../lib/projects-api";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,14 +55,6 @@ export function DashboardHeader() {
       toast.success("Logged out successfully");
     } catch (error) {
       toast.error("Failed to logout");
-    }
-  };
-
-  const handleTeamChange = (teamId: string) => {
-    const team = teams.find(t => t.id === teamId);
-    if (team) {
-      setCurrentTeam(team);
-      toast.success(`Switched to ${team.name}`);
     }
   };
 
@@ -168,48 +161,8 @@ export function DashboardHeader() {
             Carcosa
           </Link>
 
-          {/* Team Selector */}
-          {teams.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="h-8 px-3">
-                  <Building2 className="h-4 w-4 mr-2" />
-                  {currentTeam ? currentTeam.name : "Select Team"}
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64" align="start">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Select Team</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {currentTeam?.organization.name}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {teams.map((team) => (
-                  <DropdownMenuItem
-                    key={team.id}
-                    onClick={() => handleTeamChange(team.id)}
-                    className={`cursor-pointer ${
-                      currentTeam?.id === team.id ? "bg-accent" : ""
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-4 w-4" />
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium">{team.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {team.organization.name}
-                        </span>
-                      </div>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {/* Workspace Switcher */}
+          {teams.length > 0 && <WorkspaceSwitcher />}
 
           {breadcrumbs.length > 0 && (
             <nav className="flex items-center gap-2 text-sm text-muted-foreground">
