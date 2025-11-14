@@ -393,13 +393,13 @@ export class BucketsService {
           // Team owns the bucket
           { ownerTeamId: teamId },
           // Team has access to the bucket
-          { 
-            sharedTeams: { 
-              some: { 
+          {
+            sharedTeams: {
+              some: {
                 teamId,
                 accessLevel: { in: ["READ_WRITE", "ADMIN"] }
-              } 
-            } 
+              }
+            }
           },
         ],
       },
@@ -418,6 +418,134 @@ export class BucketsService {
         },
       },
       orderBy: { name: "asc" },
+    });
+  }
+
+  // Update bucket metadata (name, region, endpoint)
+  async updateBucket(bucketId: string, updateData: { name?: string; region?: string; endpoint?: string }, userId: string) {
+    // Get bucket and verify user has admin access
+    const bucket = await this.getBucketById(bucketId, userId);
+
+    // Check if user has admin access to the bucket (owner or admin of owning team)
+    const ownerTeamAccess = await prisma.teamMember.findFirst({
+      where: {
+        teamId: bucket.ownerTeamId,
+        userId,
+        role: { in: ["OWNER", "ADMIN"] },
+      },
+    });
+
+    if (!ownerTeamAccess) {
+      throw new Error("insufficient_permissions");
+    }
+
+    // Filter out undefined values
+    const dataToUpdate: any = {};
+    if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
+    if (updateData.region !== undefined) dataToUpdate.region = updateData.region;
+    if (updateData.endpoint !== undefined) dataToUpdate.endpoint = updateData.endpoint;
+
+    return prisma.bucket.update({
+      where: { id: bucketId },
+      data: dataToUpdate,
+      include: {
+        ownerTeam: {
+          select: {
+            id: true,
+            name: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        sharedTeams: {
+          include: {
+            team: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            projects: true,
+          },
+        },
+      },
+    });
+  }
+
+  // Rotate bucket credentials (access key and secret key)
+  async rotateBucketCredentials(
+    bucketId: string,
+    encryptedAccessKey: string,
+    encryptedSecretKey: string,
+    userId: string
+  ) {
+    // Get bucket and verify user has admin access
+    const bucket = await this.getBucketById(bucketId, userId);
+
+    // Check if user has admin access to the bucket (owner or admin of owning team)
+    const ownerTeamAccess = await prisma.teamMember.findFirst({
+      where: {
+        teamId: bucket.ownerTeamId,
+        userId,
+        role: { in: ["OWNER", "ADMIN"] },
+      },
+    });
+
+    if (!ownerTeamAccess) {
+      throw new Error("insufficient_permissions");
+    }
+
+    // Update the bucket with new encrypted credentials
+    // Also reset status to pending since credentials have changed
+    return prisma.bucket.update({
+      where: { id: bucketId },
+      data: {
+        encryptedAccessKey,
+        encryptedSecretKey,
+        status: "pending", // Reset status to pending after credential rotation
+        lastChecked: new Date(),
+      },
+      include: {
+        ownerTeam: {
+          select: {
+            id: true,
+            name: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        sharedTeams: {
+          include: {
+            team: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            projects: true,
+          },
+        },
+      },
     });
   }
 }
