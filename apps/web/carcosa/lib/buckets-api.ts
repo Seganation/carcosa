@@ -131,8 +131,19 @@ class BucketsAPI {
 
   async update(id: string, data: UpdateBucketData): Promise<{ bucket: Bucket }> {
     return this.request(`/api/v1/buckets/${id}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(data),
+    });
+  }
+
+  async rotateCredentials(
+    id: string,
+    accessKeyId: string,
+    secretAccessKey: string
+  ): Promise<{ bucket: Bucket; message: string }> {
+    return this.request(`/api/v1/buckets/${id}/rotate-credentials`, {
+      method: "POST",
+      body: JSON.stringify({ accessKeyId, secretAccessKey }),
     });
   }
 
