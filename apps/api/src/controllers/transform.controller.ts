@@ -40,11 +40,39 @@ export const handle = asyncHandler(async (req: Request, res: Response) => {
       throw new NotFoundError('Project', ErrorCode.PROJECT_NOT_FOUND);
     }
 
+    // SECURITY: Validate transform parameters to prevent DoS attacks
     const w = req.query.w ? Number(req.query.w) : undefined;
     const h = req.query.h ? Number(req.query.h) : undefined;
     const q = req.query.q ? Number(req.query.q) : 80;
     const f = typeof req.query.f === "string" ? (req.query.f as string) : undefined;
     const fit = typeof req.query.fit === "string" ? (req.query.fit as any) : "cover";
+
+    // Validate width (max 4K resolution)
+    if (w !== undefined && (isNaN(w) || w < 1 || w > 3840)) {
+      throw new ValidationError('Width must be between 1 and 3840 pixels', { width: w });
+    }
+
+    // Validate height (max 4K resolution)
+    if (h !== undefined && (isNaN(h) || h < 1 || h > 2160)) {
+      throw new ValidationError('Height must be between 1 and 2160 pixels', { height: h });
+    }
+
+    // Validate quality
+    if (isNaN(q) || q < 1 || q > 100) {
+      throw new ValidationError('Quality must be between 1 and 100', { quality: q });
+    }
+
+    // Validate format
+    const allowedFormats = ['webp', 'avif', 'png', 'jpeg', 'jpg'];
+    if (f && !allowedFormats.includes(f)) {
+      throw new ValidationError('Invalid format. Allowed: webp, avif, png, jpeg, jpg', { format: f });
+    }
+
+    // Validate fit mode
+    const allowedFits = ['cover', 'contain', 'fill', 'inside', 'outside'];
+    if (!allowedFits.includes(fit)) {
+      throw new ValidationError('Invalid fit mode. Allowed: cover, contain, fill, inside, outside', { fit });
+    }
 
     const token = projectTokenFromAuthHeader(req.headers.authorization);
     if (token) {

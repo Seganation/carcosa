@@ -9,12 +9,9 @@ export async function validateApiKey(
 ) {
   try {
     const apiKey = req.headers["x-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
-    
-    console.log("🔑 API Key validation - headers:", {
-      "x-api-key": req.headers["x-api-key"],
-      "authorization": req.headers["authorization"],
-      "extracted-key": apiKey
-    });
+
+    // SECURITY: Log validation attempt without exposing the actual key
+    console.log("🔑 API Key validation attempt from IP:", req.ip);
 
     if (!apiKey || typeof apiKey !== "string") {
       return res.status(401).json({

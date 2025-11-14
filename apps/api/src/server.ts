@@ -8,6 +8,7 @@ const __dirname = dirname(__filename);
 config({ path: resolve(__dirname, "../../../.env") });
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import fileUpload from "express-fileupload";
 import { createServer } from "http";
@@ -43,13 +44,58 @@ if (redisClient) {
 realtimeSystem.initialize(server);
 console.log("✅ [realtime] WebSocket system attached to HTTP server");
 
+// Security headers with Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // Swagger UI needs unsafe-inline
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
+  frameguard: {
+    action: 'deny',
+  },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin',
+  },
+}));
+
+// CORS configuration
+const allowedOrigins = env.NODE_ENV === 'production'
+  ? [env.FRONTEND_URL, env.API_URL]
+  : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:4000'];
+
 app.use(
   cors({
-    origin:
-      process.env.NODE_ENV === "production"
-        ? [env.API_URL.replace(/:4000$/, ":3000")] // Allow frontend URL
-        : true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`🚨 [security] CORS blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+    exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
   })
 );
 app.use(express.json({ limit: "2mb" }));

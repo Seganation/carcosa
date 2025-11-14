@@ -20,9 +20,10 @@ export interface FilePathOptions {
 /**
  * Generate a file path with proper isolation
  * @param context - Project context (org, team, project)
- * @param filename - The filename
+ * @param filename - The filename (will be sanitized)
  * @param options - Additional path options
  * @returns Properly scoped file path
+ * @throws Error if filename or slugs contain dangerous patterns
  */
 export function generateFilePath(
   context: ProjectContext,
@@ -32,26 +33,37 @@ export function generateFilePath(
   const { organizationSlug, teamSlug, projectSlug } = context;
   const { tenantSlug, version, transform } = options;
 
+  // Sanitize filename to prevent path traversal
+  const safeFilename = sanitizeFilename(filename);
+
+  // Sanitize all slugs
+  const safeOrgSlug = sanitizeSlug(organizationSlug);
+  const safeTeamSlug = sanitizeSlug(teamSlug);
+  const safeProjectSlug = sanitizeSlug(projectSlug);
+
   // Base path: org/team/project
-  let path = `${organizationSlug}/${teamSlug}/${projectSlug}`;
+  let path = `${safeOrgSlug}/${safeTeamSlug}/${safeProjectSlug}`;
 
   // Add tenant folder for multi-tenant projects
   if (tenantSlug) {
-    path += `/tenants/${tenantSlug}`;
+    const safeTenantSlug = sanitizeSlug(tenantSlug);
+    path += `/tenants/${safeTenantSlug}`;
   }
 
   // Add version folder
   if (version && version !== "v1") {
-    path += `/versions/${version}`;
+    const safeVersion = sanitizeSlug(version);
+    path += `/versions/${safeVersion}`;
   }
 
   // Add transform folder
   if (transform) {
-    path += `/transforms/${transform}`;
+    const safeTransform = sanitizeSlug(transform);
+    path += `/transforms/${safeTransform}`;
   }
 
-  // Add filename
-  path += `/${filename}`;
+  // Add sanitized filename
+  path += `/${safeFilename}`;
 
   return path;
 }
@@ -225,13 +237,71 @@ export function validateFilePath(
 }
 
 /**
+ * Sanitize a filename to prevent path traversal and injection attacks
+ * @param filename - Raw filename from user input
+ * @returns Safe filename
+ * @throws Error if filename contains dangerous patterns
+ */
+export function sanitizeFilename(filename: string): string {
+  if (!filename || typeof filename !== 'string') {
+    throw new Error('Filename must be a non-empty string');
+  }
+
+  // Remove null bytes (can bypass extension checks)
+  let clean = filename.replace(/\x00/g, '');
+
+  // Normalize unicode to prevent homograph attacks
+  clean = clean.normalize('NFC');
+
+  // Remove path traversal sequences
+  clean = clean.replace(/\.\./g, '');
+  clean = clean.replace(/[\/\\]/g, '');
+
+  // Remove leading/trailing dots and spaces
+  clean = clean.replace(/^[.\s]+|[.\s]+$/g, '');
+
+  // Validate allowed characters (alphanumeric, dash, underscore, dot)
+  if (!/^[a-zA-Z0-9._-]+$/.test(clean)) {
+    throw new Error('Filename contains invalid characters. Only alphanumeric, dots, dashes, and underscores are allowed.');
+  }
+
+  // Prevent hidden files
+  if (clean.startsWith('.')) {
+    throw new Error('Filenames cannot start with a dot');
+  }
+
+  // Ensure filename has reasonable length
+  if (clean.length === 0) {
+    throw new Error('Filename is empty after sanitization');
+  }
+
+  if (clean.length > 255) {
+    throw new Error('Filename is too long (max 255 characters)');
+  }
+
+  // Prevent reserved Windows filenames
+  const reserved = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'];
+  const nameWithoutExt = clean.split('.')[0]?.toUpperCase();
+  if (nameWithoutExt && reserved.includes(nameWithoutExt)) {
+    throw new Error(`Filename uses a reserved name: ${nameWithoutExt}`);
+  }
+
+  return clean;
+}
+
+/**
  * Sanitize a slug for use in file paths
  * @param input - Raw string to convert to slug
  * @returns Safe slug for file paths
  */
 export function sanitizeSlug(input: string): string {
+  if (!input || typeof input !== 'string') {
+    throw new Error('Slug must be a non-empty string');
+  }
+
   return input
     .toLowerCase()
+    .normalize('NFC')
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
@@ -265,6 +335,7 @@ export default {
   generateUploadPath,
   parseFilePath,
   validateFilePath,
+  sanitizeFilename,
   sanitizeSlug,
   FILE_PATH_EXAMPLES,
 };

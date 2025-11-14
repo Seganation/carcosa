@@ -7,8 +7,9 @@ import { generateFilePath, generateUploadPath, type ProjectContext } from "../ut
 
 export class UploadsService {
   async initUpload(data: InitUploadInput, projectId: string, apiKeyId: string) {
-    console.log("🚀 Init upload - data:", data, "projectId:", projectId, "apiKeyId:", apiKeyId);
-    
+    // SECURITY: Log operation without exposing sensitive data
+    console.log("🚀 Init upload - projectId:", projectId, "fileName:", data.fileName);
+
     // API key validation is already done by middleware
     // Check if API key has write permission (default to true for now)
     const hasWritePermission = true; // TODO: Get from req.apiKey.permissions
@@ -32,8 +33,11 @@ export class UploadsService {
         },
       },
     });
-    
-    console.log("📋 Project found:", project);
+
+    // SECURITY: Log success without project details
+    if (project) {
+      console.log("📋 Project verification successful");
+    }
 
     if (!project) {
       throw new Error("project_not_found");
