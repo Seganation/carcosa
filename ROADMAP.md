@@ -471,7 +471,7 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
 
 ---
 
-### **WEEK 5: FRONTEND COMPLETION - POLISH & UX** 🚧 **IN PROGRESS (60%)**
+### **WEEK 5: FRONTEND COMPLETION - POLISH & UX** 🚧 **IN PROGRESS (85%)**
 
 **Goal**: Polish UI, improve UX, extract inline components
 
@@ -498,19 +498,22 @@ Transform Carcosa from 45% complete to production-ready MVP in 2-3 weeks, then t
   - Standardize loading states ✅ (skeleton loaders)
   - Consistent toast notifications ✅ (consistent across all dialogs)
 
-#### Phase 5B: Workspace Switcher & Navigation (Days 2-3)
-- [ ] **Task 5.4**: Workspace switcher
-  - Create workspace switcher dropdown in header
-  - Show all organizations user is member of
-  - Label single-member orgs as "Personal Workspace"
-  - Add team switcher within workspace
-  - Persist selection in localStorage
+#### Phase 5B: Workspace Switcher & Navigation (Days 2-3) ✅ **COMPLETE**
+- [✅] **Task 5.4**: Workspace switcher ✅ **COMPLETE**
+  - Created workspace switcher dropdown in header ✅
+  - Shows all organizations user is member of ✅
+  - Labels single-member orgs as "Personal Workspace" ✅
+  - Team switcher within workspace hierarchy ✅
+  - localStorage persistence for selection ✅
+  - Clean, hierarchical dropdown UI ✅
+  - **Component**: `workspace-switcher.tsx` (151 lines)
 
-- [ ] **Task 5.5**: Navigation improvements
-  - Add breadcrumbs to all settings pages
-  - Add back navigation
-  - Add unsaved changes warning
-  - Improve sidebar organization
+- [✅] **Task 5.5**: Navigation improvements ✅ **COMPLETE**
+  - Breadcrumbs already exist on all pages ✅
+  - Created BackButton component for navigation ✅
+  - Created useUnsavedChangesWarning hook ✅
+  - Browser back/refresh warnings for unsaved changes ✅
+  - **Files**: `back-button.tsx`, `use-unsaved-changes.ts`
 
 #### Phase 5C: UX Polish (Days 3-4) 🚧 **IN PROGRESS**
 - [ ] **Task 5.6**: Onboarding improvements
