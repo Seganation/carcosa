@@ -55,7 +55,12 @@ export default function BucketsPage() {
         </Button>
       </div>
 
-      <BucketGrid buckets={buckets} loading={loading} onUpdate={loadBuckets} />
+      <BucketGrid
+        buckets={buckets}
+        loading={loading}
+        onUpdate={loadBuckets}
+        onCreateClick={() => setCreateDialogOpen(true)}
+      />
 
       <CreateBucketDialog
         open={createDialogOpen}

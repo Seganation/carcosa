@@ -26,9 +26,10 @@ interface BucketGridProps {
   buckets: Bucket[];
   loading: boolean;
   onUpdate: () => void;
+  onCreateClick?: () => void;
 }
 
-export function BucketGrid({ buckets, loading, onUpdate }: BucketGridProps) {
+export function BucketGrid({ buckets, loading, onUpdate, onCreateClick }: BucketGridProps) {
   const [validating, setValidating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const router = useRouter();
@@ -85,12 +86,27 @@ export function BucketGrid({ buckets, loading, onUpdate }: BucketGridProps) {
 
   if (!buckets || buckets.length === 0) {
     return (
-      <div className="text-center p-8">
-        <p className="text-muted-foreground">
-          No storage buckets connected yet. Connect your first bucket to get
-          started!
-        </p>
-      </div>
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted mb-4">
+            <Database className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No storage buckets yet</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+            Connect your first S3 or Cloudflare R2 bucket to start storing and
+            managing files. Buckets provide scalable storage for your projects.
+          </p>
+          {onCreateClick && (
+            <Button
+              onClick={onCreateClick}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Connect Bucket
+            </Button>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
