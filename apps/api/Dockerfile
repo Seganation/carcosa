@@ -77,11 +77,15 @@ RUN apk add --no-cache \
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Copy built application
-COPY --from=installer --chown=nodejs:nodejs /app/apps/api/dist ./dist
+# Copy root package.json for workspace resolution FIRST
+COPY --from=installer --chown=nodejs:nodejs /app/package.json ./package.json
 
-# Copy complete node_modules with all dependencies
+# Copy complete node_modules with all dependencies (including sharp)
 COPY --from=installer --chown=nodejs:nodejs /app/node_modules ./node_modules
+
+# Copy API application
+COPY --from=installer --chown=nodejs:nodejs /app/apps/api/dist ./apps/api/dist
+COPY --from=installer --chown=nodejs:nodejs /app/apps/api/package.json ./apps/api/package.json
 
 # Copy package structure for workspace packages
 COPY --from=installer --chown=nodejs:nodejs /app/packages/database/dist ./packages/database/dist
@@ -96,9 +100,6 @@ COPY --from=installer --chown=nodejs:nodejs /app/packages/storage/package.json .
 
 COPY --from=installer --chown=nodejs:nodejs /app/packages/file-router/dist ./packages/file-router/dist
 COPY --from=installer --chown=nodejs:nodejs /app/packages/file-router/package.json ./packages/file-router/package.json
-
-# Copy root package.json for workspace resolution
-COPY --from=installer --chown=nodejs:nodejs /app/package.json ./package.json
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app/logs
@@ -115,5 +116,5 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1
 
-# Use explicit node command
-CMD ["node", "dist/server.js"]
+# Use explicit node command with correct path
+CMD ["node", "apps/api/dist/server.js"]
