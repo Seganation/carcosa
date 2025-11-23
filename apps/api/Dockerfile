@@ -55,7 +55,6 @@ RUN npm run build --workspace=@carcosa/file-router
 RUN npm run build --workspace=api
 
 FROM base AS runner
-WORKDIR /app
 
 # Install ALL runtime dependencies for sharp and other native modules
 RUN apk add --no-cache \
@@ -76,6 +75,9 @@ RUN apk add --no-cache \
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
+
+# Set working directory to workspace root where node_modules exists
+WORKDIR /app
 
 # Copy root package.json for workspace resolution FIRST
 COPY --from=installer --chown=nodejs:nodejs /app/package.json ./package.json
@@ -102,11 +104,8 @@ COPY --from=installer --chown=nodejs:nodejs /app/packages/storage/package.json .
 COPY --from=installer --chown=nodejs:nodejs /app/packages/file-router/dist ./packages/file-router/dist
 COPY --from=installer --chown=nodejs:nodejs /app/packages/file-router/package.json ./packages/file-router/package.json
 
-# Create logs directory
-RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app/logs
-
-# Create a symlink from apps/api/node_modules to the root node_modules for module resolution
-RUN ln -sf /app/node_modules /app/apps/api/node_modules && chown -h nodejs:nodejs /app/apps/api/node_modules
+# Create logs directory and ensure proper ownership
+RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app
 
 # Switch to non-root user
 USER nodejs
@@ -120,5 +119,5 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1
 
-# Use explicit node command with correct path
+# Run from workspace root where node_modules exists - this is critical for ESM resolution
 CMD ["node", "apps/api/dist/server.js"]
