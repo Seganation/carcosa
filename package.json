@@ -19,6 +19,7 @@
     "typescript": "5.8.3",
     "vitest": "^2.1.4"
   },
+  "type": "module",
   "engines": {
     "node": ">=18"
   },
