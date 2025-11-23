@@ -68,7 +68,21 @@ export async function register(req: Request, res: Response) {
       // Don't fail registration if org creation fails
     }
 
-    return res.status(201).json({ user });
+    // Generate JWT token for immediate authentication
+    const token = signJwt({
+      userId: user.id,
+      email: user.email ?? undefined,
+    });
+
+    // Set HTTP-only cookie
+    res.cookie("auth_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    return res.status(201).json({ user, token });
   } catch (error) {
     console.error("Registration error:", error);
     if (error instanceof Error && error.name === "ZodError") {
