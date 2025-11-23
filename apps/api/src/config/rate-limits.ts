@@ -5,14 +5,14 @@
  * Uses in-memory storage for VPS deployment.
  */
 
-import type { RateLimitConfig } from '../utils/in-memory-rate-limiter.js';
-import { Permission } from '../types/permissions.js';
+import type { RateLimitConfig } from "../utils/in-memory-rate-limiter.js";
+import { Permission } from "../types/permissions.js";
 
 /**
  * Rate limit tier configurations
  * Development mode: Much higher limits for testing
  */
-const isDevelopment = process.env.NODE_ENV !== 'production';
+const isDevelopment = process.env.NODE_ENV !== "production";
 
 export const RateLimitTiers = {
   /**
@@ -116,29 +116,29 @@ export const PermissionRateLimits: Record<string, RateLimitConfig> = {
  */
 export const EndpointRateLimits: Record<string, RateLimitConfig> = {
   // Authentication endpoints - Prevent brute force
-  'POST /api/v1/auth/login': {
+  "POST /api/v1/auth/login": {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 5,
+    maxRequests: isDevelopment ? 1000 : 10,
   },
-  'POST /api/v1/auth/register': {
+  "POST /api/v1/auth/register": {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 3,
+    maxRequests: isDevelopment ? 1000 : 20,
   },
 
   // Transform endpoint - High traffic, needs high limit
-  'GET /api/v1/transform/*': {
+  "GET /api/v1/transform/*": {
     windowMs: 60 * 60 * 1000, // 1 hour
     maxRequests: 5000,
   },
 
   // File download - Medium limit
-  'GET /api/v1/projects/:id/files/:fileId/download': {
+  "GET /api/v1/projects/:id/files/:fileId/download": {
     windowMs: 60 * 60 * 1000, // 1 hour
     maxRequests: 1000,
   },
 
   // API key creation - Very restrictive
-  'POST /api/v1/projects/:id/api-keys': {
+  "POST /api/v1/projects/:id/api-keys": {
     windowMs: 60 * 60 * 1000, // 1 hour
     maxRequests: 10,
   },
@@ -183,9 +183,9 @@ export function getRateLimitForEndpoint(
 
   // Check wildcard patterns
   for (const [pattern, config] of Object.entries(EndpointRateLimits)) {
-    if (pattern.includes('*')) {
+    if (pattern.includes("*")) {
       const regex = new RegExp(
-        '^' + pattern.replace(/\*/g, '.*').replace(/:\w+/g, '[^/]+') + '$'
+        "^" + pattern.replace(/\*/g, ".*").replace(/:\w+/g, "[^/]+") + "$"
       );
       if (regex.test(key)) {
         return config;
@@ -237,7 +237,7 @@ export function getRateLimitForRequest(
   // Check permission-based limits
   if (permissions.length > 0) {
     const permissionLimits = permissions
-      .map(p => PermissionRateLimits[p])
+      .map((p) => PermissionRateLimits[p])
       .filter((limit): limit is RateLimitConfig => limit !== undefined);
 
     if (permissionLimits.length > 0) {
