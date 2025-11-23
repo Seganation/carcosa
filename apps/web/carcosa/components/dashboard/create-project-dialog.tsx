@@ -35,7 +35,7 @@ export function CreateProjectDialog({
   const [projectName, setProjectName] = useState("");
   const [projectSlug, setProjectSlug] = useState("");
   const [selectedBucketId, setSelectedBucketId] = useState("");
-  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState("personal");
   const [multiTenant, setMultiTenant] = useState(false);
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [loadingBuckets, setLoadingBuckets] = useState(false);
@@ -94,7 +94,7 @@ export function CreateProjectDialog({
       name: projectName.trim(),
       slug: projectSlug.trim(),
       bucketId: selectedBucketId,
-      teamId: selectedTeamId || undefined,
+      teamId: selectedTeamId === "personal" ? undefined : selectedTeamId || undefined,
       multiTenant,
     });
 
@@ -138,7 +138,7 @@ export function CreateProjectDialog({
     setProjectName("");
     setProjectSlug("");
     setSelectedBucketId("");
-    setSelectedTeamId("");
+    setSelectedTeamId("personal");
     setMultiTenant(false);
   };
 
@@ -146,7 +146,7 @@ export function CreateProjectDialog({
     (bucket) => bucket.id === selectedBucketId
   );
 
-  const selectedTeam = teams.find((team) => team.id === selectedTeamId);
+  const selectedTeam = teams.find((team) => team.id === selectedTeamId && selectedTeamId !== "personal");
 
   return (
     <Dialog
@@ -205,7 +205,7 @@ export function CreateProjectDialog({
                   <SelectValue placeholder="Select a team (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">
+                  <SelectItem value="personal">
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       <span>Personal Project</span>
