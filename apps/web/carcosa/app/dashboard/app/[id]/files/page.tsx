@@ -1,8 +1,11 @@
+"use client";
+
+import { use } from "react";
 import { AppFiles } from "../../../../../components/dashboard/app-files";
 import { CarcosaUploader } from "../../../../../components/dashboard/carcosa-uploader";
 
-export default async function AppFilesPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default function AppFilesPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   return (
     <div className="space-y-6">
       {/* 🚀 NEW: Advanced Carcosa File Upload */}
