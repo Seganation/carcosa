@@ -75,11 +75,12 @@ export async function register(req: Request, res: Response) {
       email: user.email ?? undefined,
     });
 
-    // Set HTTP-only cookie
+    // Set HTTP-only cookie (works across subdomains in production)
     res.cookie("auth_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      domain: process.env.NODE_ENV === "production" ? ".rawadara.com" : undefined,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -124,11 +125,12 @@ export async function login(req: Request, res: Response) {
       email: user.email ?? undefined,
     });
 
-    // Set HTTP-only cookie
+    // Set HTTP-only cookie (works across subdomains in production)
     res.cookie("auth_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      domain: process.env.NODE_ENV === "production" ? ".rawadara.com" : undefined,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
