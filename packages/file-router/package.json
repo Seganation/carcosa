@@ -1,6 +1,7 @@
 {
   "name": "@carcosa/file-router",
   "version": "0.1.0",
+  "type": "module",
   "description": "Typed file upload router system for Carcosa - UploadThing competitor",
   "main": "dist/file-router/src/index.js",
   "types": "dist/file-router/src/index.d.ts",
