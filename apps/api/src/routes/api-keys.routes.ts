@@ -43,4 +43,15 @@ router.post(
   ApiKeys.regenerate
 );
 
+// Generate secure JWT token for an API key
+router.post(
+  "/projects/:id/api-keys/:keyId/token",
+  authMiddleware,
+  requirePermission(Permission.MANAGE_API_KEYS),
+  ApiKeys.generateSecureToken
+);
+
+// Verify secure token (public endpoint for SDK)
+router.post("/tokens/verify", ApiKeys.verifySecureToken);
+
 export default router;

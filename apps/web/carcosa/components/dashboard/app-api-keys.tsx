@@ -49,6 +49,36 @@ export function AppApiKeys({ appId }: AppApiKeysProps) {
     loadStoredKeys();
   }, [appId]);
 
+  const [secureTokens, setSecureTokens] = useState<Record<string, string>>({});
+
+  const fetchSecureToken = async (apiKeyId: string) => {
+    try {
+      const response = await fetch(
+        `${apiBase()}/api/v1/projects/${appId}/api-keys/${apiKeyId}/token`,
+        {
+          method: "POST",
+          headers: withAuth(),
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to generate secure token");
+      }
+
+      const data = await response.json();
+      setSecureTokens((prev) => ({
+        ...prev,
+        [apiKeyId]: data.token,
+      }));
+      return data.token;
+    } catch (error) {
+      console.error("Failed to fetch secure token:", error);
+      toast.error("Failed to generate token");
+      return null;
+    }
+  };
+
   const loadStoredKeys = () => {
     // Load all stored API keys for this project from localStorage
     const keys: Record<string, string> = {};
@@ -235,51 +265,66 @@ export function AppApiKeys({ appId }: AppApiKeysProps) {
                           )}
                         </div>
 
-                        {/* API Key Display */}
-                        {(storedKeys[apiKey.id] || storedKeys["default"]) && (
-                          <div className="flex gap-2 items-center">
-                            <Input
-                              value={
-                                visibleKeys[apiKey.id]
-                                  ? `CARCOSA_APP_SECRET=${storedKeys[apiKey.id] || storedKeys["default"]}`
-                                  : `CARCOSA_APP_SECRET=crcsa_${"•".repeat(28)}${(storedKeys[apiKey.id] || storedKeys["default"]).slice(-4)}`
-                              }
-                              readOnly
-                              className="font-mono text-xs bg-muted/50"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => {
-                                setVisibleKeys({
-                                  ...visibleKeys,
-                                  [apiKey.id]: !visibleKeys[apiKey.id],
-                                });
-                              }}
-                            >
-                              {visibleKeys[apiKey.id] ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => {
-                                const key =
-                                  storedKeys[apiKey.id] ||
-                                  storedKeys["default"];
-                                navigator.clipboard.writeText(
-                                  `CARCOSA_APP_SECRET=${key}`
-                                );
-                                toast.success(
-                                  "API key copied with env variable!"
-                                );
-                              }}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
+                        {/* Secure Token Display */}
+                        {!apiKey.revokedAt && (
+                          <div className="space-y-2">
+                            <div className="flex gap-2 items-center">
+                              <Input
+                                value={
+                                  secureTokens[apiKey.id] &&
+                                  visibleKeys[apiKey.id]
+                                    ? `CARCOSA_TOKEN=${secureTokens[apiKey.id]}`
+                                    : secureTokens[apiKey.id]
+                                      ? `CARCOSA_TOKEN=${"•".repeat(32)}...${secureTokens[apiKey.id].slice(-8)}`
+                                      : "Click eye icon to generate secure token"
+                                }
+                                readOnly
+                                className="font-mono text-xs bg-muted/50"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={async () => {
+                                  if (!secureTokens[apiKey.id]) {
+                                    await fetchSecureToken(apiKey.id);
+                                  }
+                                  setVisibleKeys({
+                                    ...visibleKeys,
+                                    [apiKey.id]: !visibleKeys[apiKey.id],
+                                  });
+                                }}
+                              >
+                                {visibleKeys[apiKey.id] ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={async () => {
+                                  let token = secureTokens[apiKey.id];
+                                  if (!token) {
+                                    token = await fetchSecureToken(apiKey.id);
+                                  }
+                                  if (token) {
+                                    navigator.clipboard.writeText(
+                                      `CARCOSA_TOKEN=${token}`
+                                    );
+                                    toast.success("Secure token copied!");
+                                  }
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <span className="text-green-600 font-medium">
+                                🔒 Secure JWT
+                              </span>{" "}
+                              - Contains NO API key, only signed metadata
+                            </div>
                           </div>
                         )}
 
