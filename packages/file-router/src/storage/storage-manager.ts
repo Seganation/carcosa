@@ -1,9 +1,9 @@
 // Storage Manager - Multi-Provider Storage Orchestration
 // Production-ready storage management! 🚀
 
-import { BaseStorageAdapter, StorageConfig, UploadOptions, DownloadOptions, FileMetadata, UploadResult, PresignedUrlResult } from './adapters/base';
-import { S3StorageAdapter, createS3Adapter, S3Config } from './adapters/s3';
-import { R2StorageAdapter, createR2Adapter, R2Config } from './adapters/r2';
+import { BaseStorageAdapter, StorageConfig, UploadOptions, DownloadOptions, FileMetadata, UploadResult, PresignedUrlResult } from './adapters/base.js';
+import { S3StorageAdapter, createS3Adapter, S3Config } from './adapters/s3.js';
+import { R2StorageAdapter, createR2Adapter, R2Config } from './adapters/r2.js';
 
 // Storage provider configuration
 export interface StorageProviderConfig {

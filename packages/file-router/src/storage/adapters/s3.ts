@@ -11,7 +11,7 @@ import {
   PresignedUrlResult, 
   StorageQuota, 
   StorageStats 
-} from './base';
+} from './base.js';
 
 // S3-specific configuration
 export interface S3Config extends StorageConfig {

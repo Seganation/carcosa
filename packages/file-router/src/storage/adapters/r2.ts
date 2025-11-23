@@ -11,7 +11,7 @@ import {
   PresignedUrlResult, 
   StorageQuota, 
   StorageStats 
-} from './base';
+} from './base.js';
 
 // R2-specific configuration
 export interface R2Config extends StorageConfig {

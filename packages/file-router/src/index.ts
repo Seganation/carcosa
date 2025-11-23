@@ -1,39 +1,37 @@
 // Main exports for @carcosa/file-router
-export * from './types';
-export * from './router';
-export * from './express-middleware';
-export *from './file-serving';
-export * from './url-routing';
-export * from './transform-pipeline';
-export * from './upload-progress';
-export * from './progress-middleware';
-export * from './react-hooks';
-export * from './react-components';
+export * from './types.js';
+export * from './router.js';
+export * from './express-middleware.js';
+export *from './file-serving.js';
+export * from './url-routing.js';
+export * from './transform-pipeline.js';
+export * from './upload-progress.js';
+export * from './progress-middleware.js';
+export * from './react-hooks.js';
+export * from './react-components.js';
 
 // 🆕 NEW: UploadThing roadmap parity features
-export * from './clipboard-upload';
-export * from './streaming-upload';
+export * from './clipboard-upload.js';
+export * from './streaming-upload.js';
 export { 
   createStorageManager, createS3Adapter, createR2Adapter,
   BaseStorageAdapter, StorageManager,
-  type StorageConfig, type UploadOptions as StorageUploadOptions, 
+  type StorageConfig, type UploadOptions as StorageUploadOptions,
   type DownloadOptions, type FileMetadata as StorageFileMetadata,
   type UploadResult, type PresignedUrlResult, type StorageQuota, type StorageStats,
   type S3Config, type R2Config
-} from './storage';
-export { createDatabaseService, DatabaseService } from './database';
-export * from './api';
-
-// Re-export commonly used utilities
-export { createUploadRouter, f } from './router';
-export { createUploadMiddleware } from './express-middleware';
-export { createFileServingMiddleware } from './file-serving';
-export { createUrlRouter } from './url-routing';
-export { createTransformPipeline, createTransformMiddleware } from './transform-pipeline';
-export { createUploadProgressManager, UploadUtils } from './upload-progress';
-export { createProgressMiddleware, setupProgressRoutes, uploadCorsMiddleware } from './progress-middleware';
+} from './storage/index.js';
+export { createDatabaseService, DatabaseService } from './database/index.js';
+export * from './api/index.js';// Re-export commonly used utilities
+export { createUploadRouter, f } from './router.js';
+export { createUploadMiddleware } from './express-middleware.js';
+export { createFileServingMiddleware } from './file-serving.js';
+export { createUrlRouter } from './url-routing.js';
+export { createTransformPipeline, createTransformMiddleware } from './transform-pipeline.js';
+export { createUploadProgressManager, UploadUtils } from './upload-progress.js';
+export { createProgressMiddleware, setupProgressRoutes, uploadCorsMiddleware } from './progress-middleware.js';
 // Storage exports handled above
-export { createAuthMiddleware, createWebhookSystem, createRealtimeSystem } from './api';
+export { createAuthMiddleware, createWebhookSystem, createRealtimeSystem } from './api/index.js';
 
 // Default export for convenience
-export { UploadRouter as default } from './router';
+export { UploadRouter as default } from './router.js';

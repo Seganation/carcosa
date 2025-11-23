@@ -12,11 +12,11 @@ export {
   type PresignedUrlResult,
   type StorageQuota,
   type StorageStats
-} from './adapters/base';
+} from './adapters/base.js';
 
 // Storage adapters
-export { S3StorageAdapter, createS3Adapter, type S3Config } from './adapters/s3';
-export { R2StorageAdapter, createR2Adapter, type R2Config } from './adapters/r2';
+export { S3StorageAdapter, createS3Adapter, type S3Config } from './adapters/s3.js';
+export { R2StorageAdapter, createR2Adapter, type R2Config } from './adapters/r2.js';
 
 // Storage management
-export { StorageManager, createStorageManager } from './storage-manager';
+export { StorageManager, createStorageManager } from './storage-manager.js';

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { UploadRouter, RouteDefinition, MiddlewareContext, UploadCompleteContext } from './router';
-import { File, UploadMetadata } from './types';
+import { UploadRouter, RouteDefinition, MiddlewareContext, UploadCompleteContext } from './router.js';
+import { File, UploadMetadata } from './types.js';
 
 // Multer file interface
 interface MulterFile {

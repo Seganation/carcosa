@@ -9,7 +9,7 @@ import {
   UploadConfig, 
   UploadUtils,
   createUploadProgressManager 
-} from './upload-progress';
+} from './upload-progress.js';
 
 // Hook return types
 export interface UseUploadProgressReturn {

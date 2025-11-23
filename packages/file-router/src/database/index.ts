@@ -2,7 +2,7 @@
 // Using simplified types for initial development
 
 // Database service
-export { DatabaseService, createDatabaseService, IDatabaseService } from './database-service';
+export { DatabaseService, createDatabaseService, IDatabaseService } from './database-service.js';
 
 // Export all types from the database service and @carcosa/database
 export type {
@@ -43,7 +43,7 @@ export type {
   OrganizationUploadStats,
   ProjectUploadStats,
   QuotaType
-} from './database-service';
+} from './database-service.js';
 
 // Default export
-export { createDatabaseService as default } from './database-service';
+export { createDatabaseService as default } from './database-service.js';

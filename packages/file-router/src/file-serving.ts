@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { RouteDefinition } from './types';
+import { RouteDefinition } from './types.js';
 
 // File serving configuration
 export interface FileServingConfig {

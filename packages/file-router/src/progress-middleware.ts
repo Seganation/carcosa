@@ -2,7 +2,7 @@
 // The UploadThing Killer - Server Integration! 🚀
 
 import { Request, Response, NextFunction } from 'express';
-import { UploadProgressManager, UploadProgress, createUploadProgressManager } from './upload-progress';
+import { UploadProgressManager, UploadProgress, createUploadProgressManager } from './upload-progress.js';
 
 // Extend Express types
 declare global {

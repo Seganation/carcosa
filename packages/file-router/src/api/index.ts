@@ -10,7 +10,7 @@ export {
   JWTPayload,
   APIKeyInfo,
   RateLimitInfo,
-} from './auth-middleware';
+} from './auth-middleware.js';
 
 // Webhook System
 export { 
@@ -22,7 +22,7 @@ export {
   WebhookEvent,
   WebhookEndpoint,
   WebhookDelivery,
-} from './webhook-system';
+} from './webhook-system.js';
 
 // Real-time System
 export { 
@@ -34,7 +34,7 @@ export {
   RealtimeEvent,
   ClientConnection,
   RoomConfig,
-} from './realtime-system';
+} from './realtime-system.js';
 
 // Re-export commonly used items
-export { createAuthMiddleware as default } from './auth-middleware';
+export { createAuthMiddleware as default } from './auth-middleware.js';

@@ -6,14 +6,14 @@ import {
   UploadCompleteContext,
   File,
   UploadMetadata,
-} from "./types";
+} from "./types.js";
 
 // Re-export types for use in other modules
 export type {
   RouteDefinition,
   MiddlewareContext,
   UploadCompleteContext,
-} from "./types";
+} from "./types.js";
 
 // File type builder with validation
 export class FileTypeBuilder<T extends UploadMetadata = UploadMetadata> {

@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { FileServingMiddleware, FileServingConfig, FileUrlGenerator } from './file-serving';
-import { UploadRouter } from './router';
+import { FileServingMiddleware, FileServingConfig, FileUrlGenerator } from './file-serving.js';
+import { UploadRouter } from './router.js';
 
 // URL routing configuration
 export interface UrlRoutingConfig extends FileServingConfig {
