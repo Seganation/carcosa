@@ -19,6 +19,7 @@ import { Database, Loader2, Users, Building2 } from "lucide-react";
 import { projectsAPI } from "@/lib/projects-api";
 import { bucketsAPI, type Bucket } from "@/lib/buckets-api";
 import { useTeam } from "../../contexts/team-context";
+import { createProjectSchema } from "@/lib/validations/projects.validation";
 
 interface CreateProjectDialogProps {
   open: boolean;
@@ -39,6 +40,7 @@ export function CreateProjectDialog({
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [loadingBuckets, setLoadingBuckets] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { teams, currentTeam } = useTeam();
 
@@ -87,20 +89,31 @@ export function CreateProjectDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!projectName || !projectSlug || !selectedBucketId) {
-      toast.error("Please fill in all required fields");
+    // Validate with Zod
+    const parsed = createProjectSchema.safeParse({
+      name: projectName.trim(),
+      slug: projectSlug.trim(),
+      bucketId: selectedBucketId,
+      teamId: selectedTeamId || undefined,
+      multiTenant,
+    });
+
+    if (!parsed.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of parsed.error.issues) {
+        if (err.path && err.path.length) {
+          zodErrors[String(err.path[0])] = err.message;
+        }
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
       return;
     }
 
+    setErrors({});
     setIsCreating(true);
     try {
-      await projectsAPI.create({
-        name: projectName,
-        slug: projectSlug,
-        bucketId: selectedBucketId,
-        multiTenant,
-        teamId: selectedTeamId || undefined,
-      });
+      await projectsAPI.create(parsed.data);
 
       toast.success("Project created successfully!");
       onOpenChange(false);
@@ -157,6 +170,9 @@ export function CreateProjectDialog({
               placeholder="My Awesome Project"
               required
             />
+            {errors.name ? (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -169,10 +185,14 @@ export function CreateProjectDialog({
               pattern="^[a-z0-9-]+$"
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Used in API endpoints and URLs. Only lowercase letters, numbers,
-              and hyphens.
-            </p>
+            {errors.slug ? (
+              <p className="text-sm text-red-500">{errors.slug}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Used in API endpoints and URLs. Only lowercase letters, numbers,
+                and hyphens.
+              </p>
+            )}
           </div>
 
           {/* Team Selection */}
