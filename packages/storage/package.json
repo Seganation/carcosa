@@ -32,6 +32,17 @@
     "vitest": "^2.1.4",
     "@types/node": "^22.15.3",
     "eslint": "^9.31.0"
+  },
+  "description": "S3-compatible storage adapters for Carcosa (S3, R2, MinIO)",
+  "author": "Carcosa Team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Seganation/carcosa.git",
+    "directory": "packages/storage"
+  },
+  "homepage": "https://github.com/Seganation/carcosa#readme",
+  "bugs": {
+    "url": "https://github.com/Seganation/carcosa/issues"
   }
 }
 

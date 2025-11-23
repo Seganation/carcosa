@@ -1,6 +1,7 @@
 {
   "name": "@carcosa/file-router",
   "version": "0.1.0",
+  "private": false,
   "type": "module",
   "description": "Typed file upload router system for Carcosa - UploadThing competitor",
   "main": "dist/file-router/src/index.js",
@@ -66,5 +67,14 @@
     "uploadthing-competitor"
   ],
   "author": "Carcosa Team",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Seganation/carcosa.git",
+    "directory": "packages/file-router"
+  },
+  "homepage": "https://github.com/Seganation/carcosa#readme",
+  "bugs": {
+    "url": "https://github.com/Seganation/carcosa/issues"
+  }
 }

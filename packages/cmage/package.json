@@ -35,6 +35,18 @@
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.1",
     "eslint": "^9.31.0"
-  }
+  },
+  "description": "React image component with automatic Carcosa transformations",
+  "author": "Carcosa Team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Seganation/carcosa.git",
+    "directory": "packages/cmage"
+  },
+  "homepage": "https://github.com/Seganation/carcosa#readme",
+  "bugs": {
+    "url": "https://github.com/Seganation/carcosa/issues"
+  },
+  "keywords": ["carcosa", "image", "react", "component", "transform"]
 }
 

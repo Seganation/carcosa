@@ -50,5 +50,17 @@
     "typescript": "5.8.3",
     "vitest": "^2.1.4",
     "eslint": "^9.31.0"
-  }
+  },
+  "description": "Next.js integration utilities for Carcosa",
+  "author": "Carcosa Team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Seganation/carcosa.git",
+    "directory": "packages/nextjs"
+  },
+  "homepage": "https://github.com/Seganation/carcosa#readme",
+  "bugs": {
+    "url": "https://github.com/Seganation/carcosa/issues"
+  },
+  "keywords": ["carcosa", "nextjs", "next", "react", "integration", "hooks"]
 }

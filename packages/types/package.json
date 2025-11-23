@@ -21,6 +21,17 @@
   "devDependencies": {
     "@repo/typescript-config": "*",
     "typescript": "5.8.3"
+  },
+  "description": "Shared TypeScript types for Carcosa",
+  "author": "Carcosa Team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Seganation/carcosa.git",
+    "directory": "packages/types"
+  },
+  "homepage": "https://github.com/Seganation/carcosa#readme",
+  "bugs": {
+    "url": "https://github.com/Seganation/carcosa/issues"
   }
 }
 
