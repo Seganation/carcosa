@@ -13,6 +13,12 @@ RUN turbo prune --scope=api --scope=@carcosa/database --docker
 FROM base AS installer
 RUN apk add --no-cache libc6-compat
 RUN apk update
+# Install build dependencies for sharp and other native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    vips-dev
 WORKDIR /app
 
 # Copy package files
@@ -48,8 +54,8 @@ RUN cd apps/api && npm run build
 FROM base AS runner
 WORKDIR /app
 
-# Install required dependencies for production
-RUN apk add --no-cache wget curl
+# Install required dependencies for production (including vips for sharp)
+RUN apk add --no-cache wget curl vips
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
