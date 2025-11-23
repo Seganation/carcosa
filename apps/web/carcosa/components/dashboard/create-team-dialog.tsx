@@ -16,6 +16,7 @@ import {
 } from "@carcosa/ui";
 import { Users, Plus } from "lucide-react";
 import { useTeam } from "../../contexts/team-context";
+import { createTeamSchema } from "@/lib/validations/teams.validation";
 import { toast } from "react-hot-toast";
 
 interface CreateTeamDialogProps {
@@ -23,7 +24,10 @@ interface CreateTeamDialogProps {
   organizationName: string;
 }
 
-export function CreateTeamDialog({ organizationId, organizationName }: CreateTeamDialogProps) {
+export function CreateTeamDialog({
+  organizationId,
+  organizationName,
+}: CreateTeamDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -31,30 +35,42 @@ export function CreateTeamDialog({ organizationId, organizationName }: CreateTea
     slug: "",
     description: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { createTeam } = useTeam();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name.trim() || !formData.slug.trim()) {
-      toast.error("Name and slug are required");
+
+    const parsed = createTeamSchema.safeParse({
+      name: formData.name.trim(),
+      slug: formData.slug.trim().toLowerCase().replace(/\s+/g, "-"),
+      description: formData.description.trim(),
+    });
+
+    if (!parsed.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of parsed.error.issues) {
+        if (err.path && err.path.length) {
+          zodErrors[String(err.path[0])] = err.message;
+        }
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
       return;
     }
 
+    setErrors({});
     setLoading(true);
     try {
-      await createTeam({
-        name: formData.name.trim(),
-        slug: formData.slug.trim().toLowerCase().replace(/\s+/g, "-"),
-        description: formData.description.trim() || undefined,
-      }, organizationId);
-      
+      await createTeam(parsed.data, organizationId);
+
       toast.success("Team created successfully!");
       setOpen(false);
       setFormData({ name: "", slug: "", description: "" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to create team";
+      const message =
+        error instanceof Error ? error.message : "Failed to create team";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -62,10 +78,13 @@ export function CreateTeamDialog({ organizationId, organizationName }: CreateTea
   };
 
   const handleNameChange = (name: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       name,
-      slug: name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
+      slug: name
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, ""),
     }));
   };
 
@@ -97,26 +116,40 @@ export function CreateTeamDialog({ organizationId, organizationName }: CreateTea
               placeholder="Enter team name"
               required
             />
+            {errors.name ? (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="slug">Slug</Label>
             <Input
               id="slug"
               value={formData.slug}
-              onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, slug: e.target.value }))
+              }
               placeholder="team-slug"
               required
             />
-            <p className="text-xs text-muted-foreground">
-              This will be used in URLs and API endpoints
-            </p>
+            {errors.slug ? (
+              <p className="text-sm text-red-500">{errors.slug}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                This will be used in URLs and API endpoints
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Describe your team"
               rows={3}
             />
