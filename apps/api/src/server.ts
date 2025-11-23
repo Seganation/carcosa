@@ -47,7 +47,7 @@ app.use(
   cors({
     origin:
       process.env.NODE_ENV === "production"
-        ? [env.API_URL.replace(/:4000$/, ":3000")] // Allow frontend URL
+        ? ["https://carcosa.rawadara.com", env.API_URL] // Allow frontend URL
         : true,
     credentials: true,
   })
@@ -101,8 +101,8 @@ app.use("/api/v1", routes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-server.listen(env.API_PORT, () => {
-  console.log(`🚀 [api] Server listening on http://localhost:${env.API_PORT}`);
+server.listen(env.API_PORT, "0.0.0.0", () => {
+  console.log(`🚀 [api] Server listening on http://0.0.0.0:${env.API_PORT}`);
   console.log(`⚡ [realtime] WebSocket system initialized`);
   console.log(`📁 [file-router] Advanced upload system ready`);
 });
