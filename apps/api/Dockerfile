@@ -40,6 +40,9 @@ COPY --from=builder /app/out/package-lock.json ./package-lock.json
 RUN --mount=type=cache,target=/root/.npm \
     npm install
 
+# Explicitly ensure sharp is installed with native bindings (turbo prune may exclude it)
+RUN npm install --workspace=api sharp@0.33.5 --force
+
 # Copy source code from pruned output
 COPY --from=builder /app/out/full/ .
 COPY turbo.json turbo.json
