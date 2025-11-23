@@ -64,7 +64,10 @@ export function FileUpload({
       if (multiple) {
         await uploadMultiple(selectedFiles, { tenantId });
       } else {
-        await upload(selectedFiles[0], { tenantId });
+        const file = selectedFiles[0];
+        if (file) {
+          await upload(file, { tenantId });
+        }
       }
       setSelectedFiles([]);
       reset();
@@ -169,7 +172,7 @@ export function FileUpload({
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .carcosa-file-upload {
           width: 100%;
         }

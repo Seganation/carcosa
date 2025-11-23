@@ -6,6 +6,45 @@
       "cache": false,
       "persistent": true
     },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "@repo/typescript-config#build": {
+      "cache": false
+    },
+    "@repo/eslint-config#build": {
+      "cache": false
+    },
+    "@carcosa/types#build": {
+      "outputs": ["dist/**"]
+    },
+    "@carcosa/storage#build": {
+      "dependsOn": ["@carcosa/types#build"],
+      "outputs": ["dist/**"]
+    },
+    "@carcosa/database#build": {
+      "outputs": ["dist/**"]
+    },
+    "@carcosa/sdk#build": {
+      "dependsOn": ["@carcosa/types#build"],
+      "outputs": ["dist/**"]
+    },
+    "@carcosa/file-router#build": {
+      "dependsOn": ["@carcosa/types#build", "@carcosa/storage#build"],
+      "outputs": ["dist/**"]
+    },
+    "@carcosa/nextjs#build": {
+      "dependsOn": ["@carcosa/types#build", "@carcosa/sdk#build"],
+      "outputs": ["dist/**"]
+    },
+    "@carcosa/cmage#build": {
+      "dependsOn": ["@carcosa/types#build", "@carcosa/sdk#build"],
+      "outputs": ["dist/**"]
+    },
+    "@carcosa/ui#build": {
+      "cache": false
+    },
     "web#build": {
       "dependsOn": ["^build", "@carcosa/database#db:generate"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],

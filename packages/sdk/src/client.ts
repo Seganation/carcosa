@@ -9,26 +9,29 @@ import type {
 
 export interface CarcosaClientOptions {
   baseUrl: string;
-  apiKey: string; // API key is now required
+  apiKey?: string; // API key is optional (required only for authenticated operations)
 }
 
 export class CarcosaClient {
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly apiKey?: string;
 
   constructor(options: CarcosaClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.apiKey = options.apiKey;
-    
+  }
+
+  private requiresApiKey(): void {
     if (!this.apiKey) {
-      throw new Error("API key is required for CarcosaClient");
+      throw new Error("API key is required for this operation");
     }
   }
 
   private headers(): HeadersInit {
+    this.requiresApiKey();
     return {
       "Content-Type": "application/json",
-      "X-API-Key": this.apiKey,
+      "X-API-Key": this.apiKey!,
     };
   }
 
@@ -38,6 +41,7 @@ export class CarcosaClient {
    * @returns Upload response with signed URL
    */
   async initUpload(payload: InitUploadRequest): Promise<InitUploadResponse> {
+    this.requiresApiKey();
     const res = await fetch(`${this.baseUrl}/api/v1/projects/${encodeURIComponent(payload.projectId)}/uploads/init`, {
       method: "POST",
       headers: this.headers(),
