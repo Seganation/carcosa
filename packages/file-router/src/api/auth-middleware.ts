@@ -3,7 +3,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { createDatabaseService } from '../database';
+import { createDatabaseService } from '../database/index.js';
 
 // Extend Express types - compatible with existing types
 declare global {
