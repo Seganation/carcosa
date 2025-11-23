@@ -33,6 +33,15 @@ RUN cd packages/database && \
 # Build database package first
 RUN cd packages/database && npm run build
 
+# Build types package (required by storage and file-router)
+RUN cd packages/types && npm run build
+
+# Build storage package (required by file-router)
+RUN cd packages/storage && npm run build
+
+# Build file-router package (required by API)
+RUN cd packages/file-router && npm run build
+
 # Build API using the proper build script
 RUN cd apps/api && npm run build
 

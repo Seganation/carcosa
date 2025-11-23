@@ -33,6 +33,8 @@ RUN cd packages/database && \
 
 # Build other packages that web depends on
 RUN cd packages/types && npm run build
+RUN cd packages/storage && npm run build
+RUN cd packages/file-router && npm run build
 RUN cd packages/sdk && npm run build
 RUN cd packages/cmage && npm run build
 RUN cd packages/ui && npm run build
