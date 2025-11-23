@@ -46,12 +46,13 @@ export async function register(req: Request, res: Response) {
     });
 
     // Auto-create default organization and team for the new user
+    let organization = null;
     try {
       const userName = body.name || body.email.split("@")[0] || "user";
       const orgName = `${userName}'s Workspace`;
       const orgSlug = `${userName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-workspace`;
 
-      await organizationsService.createOrganization(
+      organization = await organizationsService.createOrganization(
         {
           name: orgName,
           slug: orgSlug,
@@ -82,7 +83,11 @@ export async function register(req: Request, res: Response) {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    return res.status(201).json({ user, token });
+    return res.status(201).json({
+      user,
+      token,
+      organization, // Include organization data so frontend knows workspace is ready
+    });
   } catch (error) {
     console.error("Registration error:", error);
     if (error instanceof Error && error.name === "ZodError") {
