@@ -132,9 +132,10 @@ export class TransformPipeline {
 
     this.jobs.set(jobId, job);
     
-    // Start processing if we have capacity
+    // Start processing asynchronously if we have capacity
     if (this.processing.size < this.config.maxConcurrentJobs) {
-      this.processJob(job);
+      // Use setImmediate to defer processing so job is returned with 'pending' status
+      setImmediate(() => this.processJob(job));
     }
 
     return job;

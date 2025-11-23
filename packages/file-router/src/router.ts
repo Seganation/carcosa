@@ -75,28 +75,34 @@ export class UploadRouter<T extends UploadMetadata = UploadMetadata> {
 
   // Create an image uploader
   imageUploader(config: RouteConfig['image'] = {}): FileTypeBuilder<T> {
-    return new FileTypeBuilder<T>('image')
-      .maxFileSize('4MB')
-      .image(config);
+    const builder = new FileTypeBuilder<T>('image');
+    if (config.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    return builder.image(config);
   }
 
   // Create a video uploader
   videoUploader(config: RouteConfig['video'] = {}): FileTypeBuilder<T> {
-    return new FileTypeBuilder<T>('video')
-      .maxFileSize('128MB')
-      .video(config);
+    const builder = new FileTypeBuilder<T>('video');
+    if (config.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    return builder.video(config);
   }
 
   // Create an audio uploader
   audioUploader(config: RouteConfig['audio'] = {}): FileTypeBuilder<T> {
-    return new FileTypeBuilder<T>('audio')
-      .maxFileSize('32MB')
-      .audio(config);
+    const builder = new FileTypeBuilder<T>('audio');
+    if (config.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    return builder.audio(config);
   }
 
   // Create a document uploader
   documentUploader(config: RouteConfig = {}): FileTypeBuilder<T> {
-    return new FileTypeBuilder<T>('document').maxFileSize('16MB');
+    const builder = new FileTypeBuilder<T>('document');
+    if (config.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    return builder;
   }
 
   // Add a custom route
@@ -139,9 +145,37 @@ export function createUploadRouter<T extends UploadMetadata = UploadMetadata>():
 
 // Utility function to create file type builders
 export const f = {
-  fileUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig) => new FileTypeBuilder<T>('file').maxFileSize('4MB'),
-  imageUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig['image']) => new FileTypeBuilder<T>('image').maxFileSize('4MB').image(config),
-  videoUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig['video']) => new FileTypeBuilder<T>('video').maxFileSize('128MB').video(config),
-  audioUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig['audio']) => new FileTypeBuilder<T>('audio').maxFileSize('32MB').audio(config),
-  documentUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig) => new FileTypeBuilder<T>('document').maxFileSize('16MB'),
+  fileUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig) => {
+    const builder = new FileTypeBuilder<T>('file');
+    if (config?.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config?.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    return builder;
+  },
+  imageUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig['image']) => {
+    const builder = new FileTypeBuilder<T>('image');
+    if (config?.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config?.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    if (config) builder.image(config);
+    return builder;
+  },
+  videoUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig['video']) => {
+    const builder = new FileTypeBuilder<T>('video');
+    if (config?.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config?.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    if (config) builder.video(config);
+    return builder;
+  },
+  audioUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig['audio']) => {
+    const builder = new FileTypeBuilder<T>('audio');
+    if (config?.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config?.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    if (config) builder.audio(config);
+    return builder;
+  },
+  documentUploader: <T extends UploadMetadata = UploadMetadata>(config?: RouteConfig) => {
+    const builder = new FileTypeBuilder<T>('document');
+    if (config?.maxFileSize) builder.maxFileSize(config.maxFileSize);
+    if (config?.maxFileCount) builder.maxFileCount(config.maxFileCount);
+    return builder;
+  },
 };
