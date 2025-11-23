@@ -43,10 +43,11 @@ class CarcosaUploadClient {
     if (typeof window === "undefined") return;
 
     try {
-      const wsUrl =
-        process.env.NODE_ENV === "production"
-          ? `wss://${window.location.host}/api/v1/carcosa/realtime`
-          : "ws://localhost:4000/api/v1/carcosa/realtime";
+      // Convert HTTP API URL to WebSocket URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const wsUrl = apiUrl
+        .replace("https://", "wss://")
+        .replace("http://", "ws://") + "/api/v1/carcosa/realtime";
 
       this.wsConnection = new WebSocket(wsUrl);
 
