@@ -54,40 +54,48 @@ app.use(
 );
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
-app.use(fileUpload({
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-  abortOnLimit: true,
-}));
+app.use(
+  fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+    abortOnLimit: true,
+  })
+);
 app.use(getLogger());
 app.use(rateLimit({ redisUrl: env.REDIS_URL, pgUrl: env.DATABASE_URL } as any));
 
-app.get("/healthz", (_req, res) => res.json({
-  ok: true,
-  timestamp: new Date().toISOString(),
-  version: "1.0.0"
-}));
+app.get("/healthz", (_req, res) =>
+  res.json({
+    ok: true,
+    timestamp: new Date().toISOString(),
+    version: "1.0.0",
+  })
+);
 
 // Real-time system health check
 app.get("/api/v1/realtime/health", (_req, res) => {
   res.json({
     realtime: { status: "integrated" },
     websocket: { status: "active" },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
 // API Documentation with Swagger UI
-app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: "Carcosa API Documentation",
-  customfavIcon: "https://swagger.io/favicon-32x32.png",
-  swaggerOptions: {
-    persistAuthorization: true,
-    displayRequestDuration: true,
-    filter: true,
-    tryItOutEnabled: true,
-  },
-}));
+app.use(
+  "/api/v1/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "Carcosa API Documentation",
+    customfavIcon: "https://swagger.io/favicon-32x32.png",
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true,
+      filter: true,
+      tryItOutEnabled: true,
+    },
+  })
+);
 
 // OpenAPI spec JSON endpoint
 app.get("/api/v1/docs.json", (_req, res) => {
