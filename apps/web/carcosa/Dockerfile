@@ -70,53 +70,24 @@ RUN apk add --no-cache wget curl
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Set working directory to the web directory
-WORKDIR /app/apps/web/carcosa
-
-# Make sure we have the necessary next.js files
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/.next ./.next
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/public ./public
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/next.config.js ./
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/package.json ./
-
-# Make sure next.js is properly installed
-RUN mkdir -p /app/apps/web/carcosa/node_modules/.bin
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules/next /app/apps/web/carcosa/node_modules/next
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules/.bin/next /app/apps/web/carcosa/node_modules/.bin/
-
-# Create the rest of the node_modules structure
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules /app/node_modules
-
-# Copy database files for direct access
-COPY --from=builder --chown=nodejs:nodejs /app/packages/database/dist /app/packages/database/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/database/prisma /app/packages/database/prisma
-
-# Copy built packages
-COPY --from=builder --chown=nodejs:nodejs /app/packages/types/dist /app/packages/types/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/sdk/dist /app/packages/sdk/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/cmage/dist /app/packages/cmage/dist
-
-# Copy UI source files (no build output - exports source directly)
-COPY --from=builder --chown=nodejs:nodejs /app/packages/ui/src /app/packages/ui/src
-COPY --from=builder --chown=nodejs:nodejs /app/packages/ui/@carcosa /app/packages/ui/@carcosa
-COPY --from=builder --chown=nodejs:nodejs /app/packages/ui/package.json /app/packages/ui/package.json
-
-# Make sure logs directory exists and has proper permissions
-RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app/logs
-RUN chown -R nodejs:nodejs /app
+# Copy the standalone output from Next.js build
+COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/.next/standalone ./
+COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/.next/static ./apps/web/carcosa/.next/static
+COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/public ./apps/web/carcosa/public
 
 # Switch to non-root user
 USER nodejs
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 ENV NEXT_TELEMETRY_DISABLED=1
 
 EXPOSE 3000
 
-# Configure health check (Next.js doesn't have /api/health by default, so just check root)
+# Configure health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Start Next.js
-CMD ["node", "node_modules/next/dist/bin/next", "start"]
+# Start Next.js standalone server
+CMD ["node", "apps/web/carcosa/server.js"]

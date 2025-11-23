@@ -32,10 +32,16 @@ class CarcosaUploadClient {
   > = new Map();
 
   constructor() {
-    this.connectWebSocket();
+    // Only connect WebSocket on client side
+    if (typeof window !== "undefined") {
+      this.connectWebSocket();
+    }
   }
 
   private connectWebSocket() {
+    // Guard against server-side execution
+    if (typeof window === "undefined") return;
+
     try {
       const wsUrl =
         process.env.NODE_ENV === "production"
