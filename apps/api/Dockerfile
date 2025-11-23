@@ -38,7 +38,7 @@ COPY --from=builder /app/out/package-lock.json ./package-lock.json
 
 # Install ALL dependencies (including sharp with proper native builds)
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --legacy-peer-deps
+    npm install
 
 # Copy source code from pruned output
 COPY --from=builder /app/out/full/ .
