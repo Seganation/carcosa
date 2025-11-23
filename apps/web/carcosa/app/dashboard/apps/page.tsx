@@ -6,12 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui
 import { CardDescription } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
-import { 
-  Box, 
-  Users, 
-  Plus, 
-  Search, 
-  Filter, 
+import {
+  Box,
+  Users,
+  Plus,
+  Search,
+  Filter,
   ArrowRight,
   Calendar,
   Database,
@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 
 import { projectsAPI } from "../../../lib/projects-api";
+import { CreateProjectDialog } from "../../../components/dashboard/create-project-dialog";
 
 export default function AppsPage() {
   const { currentTeam, teams } = useTeam();
@@ -29,6 +30,7 @@ export default function AppsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
 
   useEffect(() => {
@@ -156,7 +158,7 @@ export default function AppsPage() {
                 </option>
               ))}
             </select>
-            <Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Project
             </Button>
@@ -255,7 +257,7 @@ export default function AppsPage() {
                 : "Create your first project to start building. Projects organize your files, API keys, and settings."
               }
             </p>
-            <Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create Project
             </Button>
@@ -326,6 +328,33 @@ export default function AppsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Project Dialog */}
+      <CreateProjectDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={() => {
+          // Reload projects after creating a new one
+          const loadProjects = async () => {
+            try {
+              const response = await projectsAPI.list();
+              const projectsWithTeams = response.projects?.map((project: any) => {
+                const team = teams.find(t => t.id === project.teamId);
+                return {
+                  ...project,
+                  team: team || null
+                };
+              }) || [];
+
+              setProjects(projectsWithTeams);
+              setFilteredProjects(projectsWithTeams);
+            } catch (error) {
+              console.error("Failed to reload projects:", error);
+            }
+          };
+          loadProjects();
+        }}
+      />
     </div>
   );
 }
