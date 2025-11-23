@@ -17,6 +17,7 @@ import {
 import { Building2, Edit } from "lucide-react";
 import { useTeam } from "../../contexts/team-context";
 import { toast } from "react-hot-toast";
+import { updateOrganizationSchema } from "../../lib/validations/organizations.validation";
 
 interface EditOrganizationDialogProps {
   organizationId: string;
@@ -37,6 +38,7 @@ export function EditOrganizationDialog({
 }: EditOrganizationDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: initialName,
     slug: initialSlug,
@@ -55,16 +57,25 @@ export function EditOrganizationDialog({
         description: initialDescription,
         logo: initialLogo,
       });
+      setErrors({});
     }
   }, [open, initialName, initialSlug, initialDescription, initialLogo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim() || !formData.slug.trim()) {
-      toast.error("Name and slug are required");
+    // Validate with Zod
+    const result = updateOrganizationSchema.safeParse(formData);
+    if (!result.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of result.error.errors) {
+        zodErrors[String(err.path[0])] = err.message;
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
       return;
     }
+    setErrors({});
 
     setLoading(true);
     try {
@@ -92,7 +103,10 @@ export function EditOrganizationDialog({
       await refreshOrganizations();
       setOpen(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to update organization";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to update organization";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -106,7 +120,10 @@ export function EditOrganizationDialog({
       // Only auto-generate slug if it matches the previous auto-generated slug
       slug:
         prev.slug === initialSlug.toLowerCase().replace(/\s+/g, "-")
-          ? name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+          ? name
+              .toLowerCase()
+              .replace(/\s+/g, "-")
+              .replace(/[^a-z0-9-]/g, "")
           : prev.slug,
     }));
   };
@@ -127,7 +144,9 @@ export function EditOrganizationDialog({
             <Building2 className="h-5 w-5" />
             Edit Organization
           </DialogTitle>
-          <DialogDescription>Update your organization's information.</DialogDescription>
+          <DialogDescription>
+            Update your organization's information.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -139,16 +158,24 @@ export function EditOrganizationDialog({
               placeholder="Enter organization name"
               required
             />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="slug">Slug</Label>
             <Input
               id="slug"
               value={formData.slug}
-              onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, slug: e.target.value }))
+              }
               placeholder="organization-slug"
               required
             />
+            {errors.slug && (
+              <p className="text-sm text-red-500">{errors.slug}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               This will be used in URLs and API endpoints
             </p>
@@ -158,7 +185,12 @@ export function EditOrganizationDialog({
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Describe your organization"
               rows={3}
             />
@@ -169,7 +201,9 @@ export function EditOrganizationDialog({
               id="logo"
               type="url"
               value={formData.logo}
-              onChange={(e) => setFormData((prev) => ({ ...prev, logo: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, logo: e.target.value }))
+              }
               placeholder="https://example.com/logo.png"
             />
           </div>

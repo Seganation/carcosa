@@ -34,6 +34,7 @@ export function CreateAppDialog({
     name: "",
     slug: "",
     bucketId: "",
+    multiTenant: false,
   });
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,6 +91,7 @@ export function CreateAppDialog({
         name: formData.name,
         slug: formData.slug,
         bucketId: formData.bucketId,
+        multiTenant: formData.multiTenant || false,
       };
 
       toast.loading("Creating project...");
@@ -103,6 +105,7 @@ export function CreateAppDialog({
         name: "",
         slug: "",
         bucketId: "",
+        multiTenant: false,
       });
       onOpenChange(false);
       onSuccess?.();
@@ -114,7 +117,7 @@ export function CreateAppDialog({
     }
   };
 
-  const selectedBucket = buckets.find(b => b.id === formData.bucketId);
+  const selectedBucket = buckets.find((b) => b.id === formData.bucketId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -192,12 +195,12 @@ export function CreateAppDialog({
                   )}
                 </SelectContent>
               </Select>
-              
+
               {buckets.length === 0 && (
                 <div className="text-sm text-muted-foreground">
                   <p>No storage buckets available.</p>
-                  <Link 
-                    href="/dashboard/buckets" 
+                  <Link
+                    href="/dashboard/buckets"
                     className="text-orange-500 hover:text-orange-600 underline"
                   >
                     Connect a bucket first
@@ -211,25 +214,33 @@ export function CreateAppDialog({
                     <div className="text-sm space-y-1">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Provider:</span>
-                        <span className="font-medium">{selectedBucket.provider.toUpperCase()}</span>
+                        <span className="font-medium">
+                          {selectedBucket.provider.toUpperCase()}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Bucket:</span>
-                        <span className="font-medium">{selectedBucket.bucketName}</span>
+                        <span className="font-medium">
+                          {selectedBucket.bucketName}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Region:</span>
-                        <span className="font-medium">{selectedBucket.region || "auto"}</span>
+                        <span className="font-medium">
+                          {selectedBucket.region || "auto"}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Status:</span>
-                        <span className={`font-medium ${
-                          selectedBucket.status === "connected" 
-                            ? "text-green-600" 
-                            : selectedBucket.status === "error" 
-                            ? "text-red-600" 
-                            : "text-yellow-600"
-                        }`}>
+                        <span
+                          className={`font-medium ${
+                            selectedBucket.status === "connected"
+                              ? "text-green-600"
+                              : selectedBucket.status === "error"
+                                ? "text-red-600"
+                                : "text-yellow-600"
+                          }`}
+                        >
                           {selectedBucket.status}
                         </span>
                       </div>

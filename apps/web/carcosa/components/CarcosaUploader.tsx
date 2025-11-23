@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback, useRef } from 'react';
-import { useCarcosaUpload, carcosaUtils } from '../lib/carcosa-upload-api';
-import { UploadProgress } from '@carcosa/file-router';
+import React, { useState, useCallback, useRef } from "react";
+import { useCarcosaUpload, carcosaUtils } from "../lib/carcosa-upload-api";
+import { UploadProgress } from "@carcosa/file-router";
 
 interface CarcosaUploaderProps {
   projectId: string;
-  uploadType: 'images' | 'documents' | 'videos';
+  uploadType: "images" | "documents" | "videos";
   maxFiles?: number;
   onUploadComplete?: (results: any[]) => void;
   onUploadError?: (error: Error) => void;
@@ -19,7 +19,7 @@ export function CarcosaUploader({
   maxFiles = 5,
   onUploadComplete,
   onUploadError,
-  className = '',
+  className = "",
 }: CarcosaUploaderProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedResults, setUploadedResults] = useState<any[]>([]);
@@ -27,18 +27,21 @@ export function CarcosaUploader({
 
   const { uploadFiles, isUploading, progress, error } = useCarcosaUpload();
 
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length > maxFiles) {
-      alert(`Maximum ${maxFiles} files allowed`);
-      return;
-    }
-    setSelectedFiles(files);
-  }, [maxFiles]);
+  const handleFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || []);
+      if (files.length > maxFiles) {
+        alert(`Maximum ${maxFiles} files allowed`);
+        return;
+      }
+      setSelectedFiles(files);
+    },
+    [maxFiles]
+  );
 
   const handleUpload = useCallback(async () => {
     if (selectedFiles.length === 0) {
-      alert('Please select files to upload');
+      alert("Please select files to upload");
       return;
     }
 
@@ -48,15 +51,15 @@ export function CarcosaUploader({
       projectId,
       routeName: uploadType,
       onProgress: (progress: UploadProgress) => {
-        console.log('Upload progress:', progress);
+        console.log("Upload progress:", progress);
       },
       onComplete: (result) => {
-        console.log('Upload complete:', result);
+        console.log("Upload complete:", result);
         results.push(result);
-        setUploadedResults(prev => [...prev, result]);
+        setUploadedResults((prev) => [...prev, result]);
       },
       onError: (error) => {
-        console.error('Upload error:', error);
+        console.error("Upload error:", error);
         onUploadError?.(error);
       },
     });
@@ -68,47 +71,54 @@ export function CarcosaUploader({
     // Clear selection after upload
     setSelectedFiles([]);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
-  }, [selectedFiles, projectId, uploadType, uploadFiles, onUploadComplete, onUploadError]);
+  }, [
+    selectedFiles,
+    projectId,
+    uploadType,
+    uploadFiles,
+    onUploadComplete,
+    onUploadError,
+  ]);
 
   const removeFile = useCallback((index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const getUploadTypeConfig = () => {
     switch (uploadType) {
-      case 'images':
+      case "images":
         return {
-          accept: 'image/*',
-          icon: '🖼️',
-          title: 'Upload Images',
-          description: 'PNG, JPG, GIF, WebP (max 4MB each)',
-          maxSize: '4MB',
+          accept: "image/*",
+          icon: "🖼️",
+          title: "Upload Images",
+          description: "PNG, JPG, GIF, WebP (max 4MB each)",
+          maxSize: "4MB",
         };
-      case 'documents':
+      case "documents":
         return {
-          accept: '.pdf,.doc,.docx,.txt,.md',
-          icon: '📄',
-          title: 'Upload Documents',
-          description: 'PDF, DOC, TXT, MD (max 16MB each)',
-          maxSize: '16MB',
+          accept: ".pdf,.doc,.docx,.txt,.md",
+          icon: "📄",
+          title: "Upload Documents",
+          description: "PDF, DOC, TXT, MD (max 16MB each)",
+          maxSize: "16MB",
         };
-      case 'videos':
+      case "videos":
         return {
-          accept: 'video/*',
-          icon: '🎥',
-          title: 'Upload Videos',
-          description: 'MP4, MOV, AVI, WebM (max 128MB each)',
-          maxSize: '128MB',
+          accept: "video/*",
+          icon: "🎥",
+          title: "Upload Videos",
+          description: "MP4, MOV, AVI, WebM (max 128MB each)",
+          maxSize: "128MB",
         };
       default:
         return {
-          accept: '*/*',
-          icon: '📁',
-          title: 'Upload Files',
-          description: 'Select files to upload',
-          maxSize: '16MB',
+          accept: "*/*",
+          icon: "📁",
+          title: "Upload Files",
+          description: "Select files to upload",
+          maxSize: "16MB",
         };
     }
   };
@@ -143,10 +153,15 @@ export function CarcosaUploader({
       {/* Selected Files */}
       {selectedFiles.length > 0 && (
         <div className="mt-4">
-          <h4 className="font-semibold mb-2">Selected Files ({selectedFiles.length})</h4>
+          <h4 className="font-semibold mb-2">
+            Selected Files ({selectedFiles.length})
+          </h4>
           <div className="space-y-2">
             {selectedFiles.map((file, index) => (
-              <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded">
+              <div
+                key={index}
+                className="flex items-center justify-between bg-gray-50 p-3 rounded"
+              >
                 <div className="flex items-center space-x-3">
                   <span>{carcosaUtils.getFileTypeIcon(file.type)}</span>
                   <div>
@@ -177,7 +192,9 @@ export function CarcosaUploader({
             disabled={isUploading}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-gray-400"
           >
-            {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} File${selectedFiles.length > 1 ? 's' : ''}`}
+            {isUploading
+              ? "Uploading..."
+              : `Upload ${selectedFiles.length} File${selectedFiles.length > 1 ? "s" : ""}`}
           </button>
         </div>
       )}
@@ -188,12 +205,13 @@ export function CarcosaUploader({
           <div className="bg-gray-200 rounded-full h-2">
             <div
               className="bg-blue-600 h-2 rounded-full transition-all"
-              style={{ width: `${(progress.uploadedBytes / progress.totalBytes) * 100}%` }}
+              style={{ width: `${progress.percentage}%` }}
             />
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            {carcosaUtils.formatFileSize(progress.uploadedBytes)} / {carcosaUtils.formatFileSize(progress.totalBytes)}
-            ({Math.round((progress.uploadedBytes / progress.totalBytes) * 100)}%)
+            {carcosaUtils.formatFileSize(progress.bytesUploaded)} /{" "}
+            {carcosaUtils.formatFileSize(progress.fileSize)}(
+            {Math.round(progress.percentage)}%)
           </p>
         </div>
       )}
@@ -211,7 +229,8 @@ export function CarcosaUploader({
         <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded text-green-700">
           <p className="font-semibold">Upload Complete! ✅</p>
           <p className="text-sm">
-            Successfully uploaded {uploadedResults.length} file{uploadedResults.length > 1 ? 's' : ''}
+            Successfully uploaded {uploadedResults.length} file
+            {uploadedResults.length > 1 ? "s" : ""}
           </p>
         </div>
       )}

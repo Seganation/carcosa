@@ -113,7 +113,10 @@ export function CreateProjectDialog({
     setErrors({});
     setIsCreating(true);
     try {
-      await projectsAPI.create(parsed.data);
+      await projectsAPI.create({
+        ...parsed.data,
+        multiTenant: parsed.data.multiTenant ?? false,
+      });
 
       toast.success("Project created successfully!");
       onOpenChange(false);
@@ -143,9 +146,7 @@ export function CreateProjectDialog({
     (bucket) => bucket.id === selectedBucketId
   );
 
-  const selectedTeam = teams.find(
-    (team) => team.id === selectedTeamId
-  );
+  const selectedTeam = teams.find((team) => team.id === selectedTeamId);
 
   return (
     <Dialog
@@ -199,10 +200,7 @@ export function CreateProjectDialog({
           {teams.length > 0 && (
             <div className="space-y-2">
               <Label>Team (Optional)</Label>
-              <Select
-                value={selectedTeamId}
-                onValueChange={setSelectedTeamId}
-              >
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a team (optional)" />
                 </SelectTrigger>
@@ -229,7 +227,8 @@ export function CreateProjectDialog({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Assign this project to a team for collaboration. Leave empty for personal projects.
+                Assign this project to a team for collaboration. Leave empty for
+                personal projects.
               </p>
             </div>
           )}
@@ -294,13 +293,11 @@ export function CreateProjectDialog({
             <div className="space-y-0.5">
               <Label className="text-base">Multi-tenant Support</Label>
               <div className="text-sm text-muted-foreground">
-                Enable this project to support multiple tenants with isolated data
+                Enable this project to support multiple tenants with isolated
+                data
               </div>
             </div>
-            <Switch
-              checked={multiTenant}
-              onCheckedChange={setMultiTenant}
-            />
+            <Switch checked={multiTenant} onCheckedChange={setMultiTenant} />
           </div>
 
           {multiTenant && (
@@ -308,10 +305,13 @@ export function CreateProjectDialog({
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium text-blue-900">Multi-tenant Enabled</span>
+                  <span className="font-medium text-blue-900">
+                    Multi-tenant Enabled
+                  </span>
                 </div>
                 <p className="text-sm text-blue-700">
-                  This project will support multiple tenants. Each tenant will have their own isolated file storage and API access.
+                  This project will support multiple tenants. Each tenant will
+                  have their own isolated file storage and API access.
                 </p>
               </CardContent>
             </Card>
@@ -341,10 +341,14 @@ export function CreateProjectDialog({
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Building2 className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium text-blue-900">Team Project</span>
+                  <span className="font-medium text-blue-900">
+                    Team Project
+                  </span>
                 </div>
                 <p className="text-sm text-blue-700">
-                  This project will be created under the <strong>{selectedTeam.name}</strong> team in <strong>{selectedTeam.organization.name}</strong>.
+                  This project will be created under the{" "}
+                  <strong>{selectedTeam.name}</strong> team in{" "}
+                  <strong>{selectedTeam.organization.name}</strong>.
                 </p>
               </CardContent>
             </Card>

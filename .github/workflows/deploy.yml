@@ -1,4 +1,4 @@
-name: Sequential Build and Deploy
+name: Production Deploy (GHCR)
 
 on:
   push:
@@ -11,15 +11,15 @@ on:
   workflow_dispatch:
     inputs:
       force_deploy:
-        description: 'Force deploy both API and Web (ignores file changes)'
+        description: "Force deploy both API and Web (ignores file changes)"
         required: false
-        default: 'false'
+        default: "false"
         type: choice
         options:
-          - 'false'
-          - 'true'
-          - 'api-only'
-          - 'web-only'
+          - "false"
+          - "true"
+          - "api-only"
+          - "web-only"
 
 env:
   REGISTRY: ghcr.io

@@ -15,6 +15,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Edit } from "lucide-react";
 import { projectsAPI } from "@/lib/projects-api";
+import { updateProjectSchema } from "@/lib/validations/projects.validation";
 
 interface Project {
   id: string;
@@ -34,6 +35,7 @@ export function EditProjectDialog({
   trigger,
 }: EditProjectDialogProps) {
   const [open, setOpen] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [projectName, setProjectName] = useState(project.name);
   const [projectSlug, setProjectSlug] = useState(project.slug);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -43,16 +45,28 @@ export function EditProjectDialog({
     if (open) {
       setProjectName(project.name);
       setProjectSlug(project.slug);
+      setErrors({});
     }
   }, [open, project]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!projectName || !projectSlug) {
-      toast.error("Please fill in all required fields");
+    // Validate with Zod
+    const result = updateProjectSchema.safeParse({
+      name: projectName,
+      slug: projectSlug,
+    });
+    if (!result.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of result.error.errors) {
+        zodErrors[String(err.path[0])] = err.message;
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
       return;
     }
+    setErrors({});
 
     // Check if anything changed
     if (projectName === project.name && projectSlug === project.slug) {
@@ -112,6 +126,9 @@ export function EditProjectDialog({
               placeholder="My Awesome Project"
               required
             />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -124,6 +141,9 @@ export function EditProjectDialog({
               pattern="^[a-z0-9-]+$"
               required
             />
+            {errors.slug && (
+              <p className="text-sm text-red-500">{errors.slug}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Used in API endpoints and URLs. Only lowercase letters, numbers,
               and hyphens.

@@ -106,9 +106,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 EXPOSE 3000
 
-# Configure health check
+# Configure health check (Next.js doesn't have /api/health by default, so just check root)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
 # Start Next.js
 CMD ["node", "node_modules/next/dist/bin/next", "start"]

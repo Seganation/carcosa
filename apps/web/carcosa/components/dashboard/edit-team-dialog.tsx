@@ -17,6 +17,7 @@ import {
 import { Users, Edit } from "lucide-react";
 import { useTeam } from "../../contexts/team-context";
 import { toast } from "react-hot-toast";
+import { updateTeamSchema } from "../../lib/validations/teams.validation";
 
 interface EditTeamDialogProps {
   teamId: string;
@@ -35,6 +36,7 @@ export function EditTeamDialog({
 }: EditTeamDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: initialName,
     slug: initialSlug,
@@ -51,16 +53,25 @@ export function EditTeamDialog({
         slug: initialSlug,
         description: initialDescription,
       });
+      setErrors({});
     }
   }, [open, initialName, initialSlug, initialDescription]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim() || !formData.slug.trim()) {
-      toast.error("Name and slug are required");
+    // Validate with Zod
+    const result = updateTeamSchema.safeParse(formData);
+    if (!result.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of result.error.errors) {
+        zodErrors[String(err.path[0])] = err.message;
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
       return;
     }
+    setErrors({});
 
     setLoading(true);
     try {
@@ -87,7 +98,8 @@ export function EditTeamDialog({
       await refreshTeams();
       setOpen(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to update team";
+      const message =
+        error instanceof Error ? error.message : "Failed to update team";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -101,7 +113,10 @@ export function EditTeamDialog({
       // Only auto-generate slug if it matches the previous auto-generated slug
       slug:
         prev.slug === initialSlug.toLowerCase().replace(/\s+/g, "-")
-          ? name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+          ? name
+              .toLowerCase()
+              .replace(/\s+/g, "-")
+              .replace(/[^a-z0-9-]/g, "")
           : prev.slug,
     }));
   };
@@ -134,16 +149,24 @@ export function EditTeamDialog({
               placeholder="Enter team name"
               required
             />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="slug">Slug</Label>
             <Input
               id="slug"
               value={formData.slug}
-              onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, slug: e.target.value }))
+              }
               placeholder="team-slug"
               required
             />
+            {errors.slug && (
+              <p className="text-sm text-red-500">{errors.slug}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               This will be used in URLs and API endpoints
             </p>
@@ -153,7 +176,12 @@ export function EditTeamDialog({
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Describe your team"
               rows={3}
             />

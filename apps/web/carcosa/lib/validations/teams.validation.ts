@@ -13,4 +13,18 @@ export const createTeamSchema = z.object({
   description: z.string().max(500).optional().or(z.literal("")),
 });
 
+export const updateTeamSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100, "Name is too long"),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .max(100, "Slug is too long")
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug may only contain lowercase letters, numbers and hyphens"
+    ),
+  description: z.string().max(500).optional().or(z.literal("")),
+});
+
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
+export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;

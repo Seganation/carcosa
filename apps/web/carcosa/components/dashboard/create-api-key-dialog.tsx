@@ -23,6 +23,7 @@ import {
 } from "../ui/select";
 import { Plus, Copy, CheckCircle, Loader2 } from "lucide-react";
 import { apiBase, withAuth } from "@/lib/api";
+import { createApiKeySchema } from "@/lib/validations/api-keys.validation";
 
 interface CreateApiKeyDialogProps {
   projectId: string;
@@ -42,10 +43,30 @@ export function CreateApiKeyDialog({
   });
   const [isCreating, setIsCreating] = useState(false);
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate with Zod
+    const parsed = createApiKeySchema.safeParse({
+      label: formData.label.trim() || undefined,
+      permissions: formData.permissions,
+    });
+
+    if (!parsed.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of parsed.error.issues) {
+        if (err.path && err.path.length) {
+          zodErrors[String(err.path[0])] = err.message;
+        }
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
+      return;
+    }
+
+    setErrors({});
     setIsCreating(true);
     try {
       const response = await fetch(
@@ -109,11 +130,17 @@ export function CreateApiKeyDialog({
   // Show newly created key dialog
   if (newlyCreatedKey) {
     return (
-      <Dialog open={!!newlyCreatedKey} onOpenChange={() => setNewlyCreatedKey(null)}>
+      <Dialog
+        open={!!newlyCreatedKey}
+        onOpenChange={() => setNewlyCreatedKey(null)}
+      >
         <DialogContent className="w-[95vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" aria-hidden="true" />
+              <CheckCircle
+                className="h-5 w-5 text-green-600"
+                aria-hidden="true"
+              />
               API Key Created
             </DialogTitle>
             <DialogDescription>
@@ -142,10 +169,13 @@ export function CreateApiKeyDialog({
                 </Button>
               </div>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3" role="alert">
+            <div
+              className="bg-yellow-50 border border-yellow-200 rounded-lg p-3"
+              role="alert"
+            >
               <p className="text-sm text-yellow-800">
-                <strong>Warning:</strong> Store this key securely. You won't be able
-                to view it again.
+                <strong>Warning:</strong> Store this key securely. You won't be
+                able to view it again.
               </p>
             </div>
           </div>
@@ -199,7 +229,10 @@ export function CreateApiKeyDialog({
                 setFormData({ ...formData, permissions: value.split(",") })
               }
             >
-              <SelectTrigger id="apiKeyPermissions" aria-describedby="apiKeyPermissionsHelp">
+              <SelectTrigger
+                id="apiKeyPermissions"
+                aria-describedby="apiKeyPermissionsHelp"
+              >
                 <SelectValue placeholder="Select permissions" />
               </SelectTrigger>
               <SelectContent>
@@ -213,7 +246,10 @@ export function CreateApiKeyDialog({
                 </SelectItem>
               </SelectContent>
             </Select>
-            <p id="apiKeyPermissionsHelp" className="text-xs text-muted-foreground">
+            <p
+              id="apiKeyPermissionsHelp"
+              className="text-xs text-muted-foreground"
+            >
               Controls what actions this API key can perform
             </p>
           </div>
@@ -231,7 +267,10 @@ export function CreateApiKeyDialog({
             <Button type="submit" className="flex-1" disabled={isCreating}>
               {isCreating ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                  <Loader2
+                    className="h-4 w-4 mr-2 animate-spin"
+                    aria-hidden="true"
+                  />
                   Creating...
                 </>
               ) : (

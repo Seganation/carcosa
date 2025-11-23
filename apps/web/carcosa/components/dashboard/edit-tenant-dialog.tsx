@@ -16,6 +16,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Edit } from "lucide-react";
 import { apiBase, withAuth } from "@/lib/api";
+import { updateTenantSchema } from "@/lib/validations/tenants.validation";
 
 interface Tenant {
   id: string;
@@ -40,6 +41,7 @@ export function EditTenantDialog({
   trigger,
 }: EditTenantDialogProps) {
   const [open, setOpen] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: tenant.metadata?.name || "",
     description: tenant.metadata?.description || "",
@@ -53,11 +55,28 @@ export function EditTenantDialog({
         name: tenant.metadata?.name || "",
         description: tenant.metadata?.description || "",
       });
+      setErrors({});
     }
   }, [open, tenant]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate with Zod (slug is immutable, so only validate name/description)
+    const result = updateTenantSchema.safeParse({
+      slug: tenant.slug,
+      ...formData,
+    });
+    if (!result.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of result.error.errors) {
+        zodErrors[String(err.path[0])] = err.message;
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
+      return;
+    }
+    setErrors({});
 
     setIsSubmitting(true);
     try {
@@ -135,6 +154,9 @@ export function EditTenantDialog({
               }
               placeholder="Tenant Name"
             />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -148,6 +170,9 @@ export function EditTenantDialog({
               placeholder="Description of this tenant"
               rows={3}
             />
+            {errors.description && (
+              <p className="text-sm text-red-500">{errors.description}</p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">

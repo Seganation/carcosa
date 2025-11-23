@@ -24,7 +24,7 @@ interface EditProfileDialogProps {
 export function EditProfileDialog({ trigger }: EditProfileDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { user, refreshUser } = useAuth();
+  const { user, refresh: refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -50,15 +50,18 @@ export function EditProfileDialog({ trigger }: EditProfileDialogProps) {
 
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/profile`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-        }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/profile`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+          }),
+        }
+      );
 
       if (!res.ok) {
         const error = await res.json();
@@ -69,7 +72,8 @@ export function EditProfileDialog({ trigger }: EditProfileDialogProps) {
       await refreshUser();
       setOpen(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to update profile";
+      const message =
+        error instanceof Error ? error.message : "Failed to update profile";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -92,7 +96,9 @@ export function EditProfileDialog({ trigger }: EditProfileDialogProps) {
             <User className="h-5 w-5" />
             Edit Profile
           </DialogTitle>
-          <DialogDescription>Update your profile information.</DialogDescription>
+          <DialogDescription>
+            Update your profile information.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -100,7 +106,9 @@ export function EditProfileDialog({ trigger }: EditProfileDialogProps) {
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               placeholder="Your name"
               required
             />
@@ -111,7 +119,9 @@ export function EditProfileDialog({ trigger }: EditProfileDialogProps) {
               id="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
               placeholder="your@email.com"
               required
             />
@@ -120,7 +130,12 @@ export function EditProfileDialog({ trigger }: EditProfileDialogProps) {
             </p>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>

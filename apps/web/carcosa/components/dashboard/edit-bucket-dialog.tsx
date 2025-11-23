@@ -15,6 +15,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Edit } from "lucide-react";
 import { bucketsAPI } from "@/lib/buckets-api";
+import { updateBucketSchema } from "@/lib/validations/buckets.validation";
 
 interface Bucket {
   id: string;
@@ -35,6 +36,7 @@ export function EditBucketDialog({
   trigger,
 }: EditBucketDialogProps) {
   const [open, setOpen] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [bucketName, setBucketName] = useState(bucket.name);
   const [region, setRegion] = useState(bucket.region || "");
   const [endpoint, setEndpoint] = useState(bucket.endpoint || "");
@@ -46,16 +48,29 @@ export function EditBucketDialog({
       setBucketName(bucket.name);
       setRegion(bucket.region || "");
       setEndpoint(bucket.endpoint || "");
+      setErrors({});
     }
   }, [open, bucket]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!bucketName) {
-      toast.error("Bucket name is required");
+    // Validate with Zod
+    const result = updateBucketSchema.safeParse({
+      name: bucketName,
+      region,
+      endpoint,
+    });
+    if (!result.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of result.error.errors) {
+        zodErrors[String(err.path[0])] = err.message;
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
       return;
     }
+    setErrors({});
 
     // Check if anything changed
     if (
@@ -105,8 +120,8 @@ export function EditBucketDialog({
             Edit Bucket
           </DialogTitle>
           <DialogDescription>
-            Update the bucket name, region, and endpoint. Provider and bucket name
-            cannot be changed.
+            Update the bucket name, region, and endpoint. Provider and bucket
+            name cannot be changed.
           </DialogDescription>
         </DialogHeader>
 
@@ -120,6 +135,9 @@ export function EditBucketDialog({
               placeholder="My Bucket"
               required
             />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Friendly name for this bucket connection
             </p>
@@ -133,6 +151,9 @@ export function EditBucketDialog({
               onChange={(e) => setRegion(e.target.value)}
               placeholder="us-east-1"
             />
+            {errors.region && (
+              <p className="text-sm text-red-500">{errors.region}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               AWS region or equivalent for your storage provider
             </p>
@@ -146,6 +167,9 @@ export function EditBucketDialog({
               onChange={(e) => setEndpoint(e.target.value)}
               placeholder="https://s3.example.com"
             />
+            {errors.endpoint && (
+              <p className="text-sm text-red-500">{errors.endpoint}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Custom S3-compatible endpoint URL
             </p>

@@ -16,6 +16,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Plus } from "lucide-react";
 import { apiBase, withAuth } from "@/lib/api";
+import { createTenantSchema } from "@/lib/validations/tenants.validation";
 
 interface CreateTenantDialogProps {
   projectId: string;
@@ -35,29 +36,48 @@ export function CreateTenantDialog({
     description: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.slug.trim()) {
-      toast.error("Tenant slug is required");
+    // Validate with Zod
+    const parsed = createTenantSchema.safeParse({
+      slug: formData.slug.trim(),
+      name: formData.name.trim() || undefined,
+      description: formData.description.trim() || undefined,
+    });
+
+    if (!parsed.success) {
+      const zodErrors: Record<string, string> = {};
+      for (const err of parsed.error.issues) {
+        if (err.path && err.path.length) {
+          zodErrors[String(err.path[0])] = err.message;
+        }
+      }
+      setErrors(zodErrors);
+      toast.error("Please fix validation errors");
       return;
     }
 
+    setErrors({});
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${apiBase()}/api/v1/projects/${projectId}/tenants`, {
-        method: "POST",
-        headers: { ...withAuth(), "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          slug: formData.slug.trim(),
-          metadata: {
-            name: formData.name.trim() || undefined,
-            description: formData.description.trim() || undefined,
-          },
-        }),
-      });
+      const response = await fetch(
+        `${apiBase()}/api/v1/projects/${projectId}/tenants`,
+        {
+          method: "POST",
+          headers: { ...withAuth(), "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            slug: formData.slug.trim(),
+            metadata: {
+              name: formData.name.trim() || undefined,
+              description: formData.description.trim() || undefined,
+            },
+          }),
+        }
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -115,9 +135,14 @@ export function CreateTenantDialog({
               pattern="^[a-z0-9-]+$"
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Used in API endpoints. Only lowercase letters, numbers, and hyphens.
-            </p>
+            {errors.slug ? (
+              <p className="text-sm text-red-500">{errors.slug}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Used in API endpoints. Only lowercase letters, numbers, and
+                hyphens.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

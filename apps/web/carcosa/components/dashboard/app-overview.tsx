@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Database, TrendingUp, Files, Key, Activity, Users, Loader2 } from "lucide-react";
+import {
+  Database,
+  TrendingUp,
+  Files,
+  Key,
+  Activity,
+  Users,
+  Loader2,
+} from "lucide-react";
 import { projectsAPI } from "@/lib/projects-api";
 
 interface AppOverviewProps {
@@ -15,7 +23,7 @@ interface Project {
   name: string;
   slug: string;
   multiTenant: boolean;
-  bucket: {
+  bucket?: {
     id: string;
     name: string;
     provider: string;
@@ -63,9 +71,7 @@ export function AppOverview({ appId }: AppOverviewProps) {
   if (error || !project) {
     return (
       <div className="text-center py-8">
-        <p className="text-muted-foreground">
-          {error || "Project not found"}
-        </p>
+        <p className="text-muted-foreground">{error || "Project not found"}</p>
       </div>
     );
   }
@@ -76,55 +82,72 @@ export function AppOverview({ appId }: AppOverviewProps) {
         <div>
           <h1 className="text-2xl font-bold">{project.name}</h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-            <div className="flex items-center gap-1">
-              <Database className="h-3 w-3" />
-              {project.bucket.bucketName}
-            </div>
-            <Badge
-              variant="secondary"
-              className={
-                project.bucket.provider === "r2"
-                  ? "bg-orange-500/10 text-orange-500"
-                  : "bg-blue-500/10 text-blue-500"
-              }
-            >
-              {project.bucket.provider.toUpperCase()}
-            </Badge>
+            {project.bucket && (
+              <>
+                <div className="flex items-center gap-1">
+                  <Database className="h-3 w-3" />
+                  {project.bucket.bucketName}
+                </div>
+                <Badge
+                  variant="secondary"
+                  className={
+                    project.bucket.provider === "r2"
+                      ? "bg-orange-500/10 text-orange-500"
+                      : "bg-blue-500/10 text-blue-500"
+                  }
+                >
+                  {project.bucket.provider.toUpperCase()}
+                </Badge>
+              </>
+            )}
             {project.multiTenant && (
-              <Badge variant="secondary" className="bg-purple-500/10 text-purple-500">
+              <Badge
+                variant="secondary"
+                className="bg-purple-500/10 text-purple-500"
+              >
                 <Users className="h-3 w-3 mr-1" />
                 Multi-tenant
               </Badge>
             )}
           </div>
         </div>
-        <Badge 
-          className={
-            project.bucket.status === "connected" 
-              ? "bg-green-500/10 text-green-500 border-green-500/20"
-              : project.bucket.status === "error"
-              ? "bg-red-500/10 text-red-500 border-red-500/20"
-              : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-          }
-        >
-          {project.bucket.status}
-        </Badge>
+        {project.bucket && (
+          <Badge
+            className={
+              project.bucket.status === "connected"
+                ? "bg-green-500/10 text-green-500 border-green-500/20"
+                : project.bucket.status === "error"
+                  ? "bg-red-500/10 text-red-500 border-red-500/20"
+                  : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+            }
+          >
+            {project.bucket.status}
+          </Badge>
+        )}
       </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Storage Provider</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{project.bucket.provider.toUpperCase()}</div>
-            <p className="text-xs text-muted-foreground">
-              {project.bucket.region ? `${project.bucket.region} region` : "Default region"}
-            </p>
-          </CardContent>
-        </Card>
+        {project.bucket && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Storage Provider
+              </CardTitle>
+              <Database className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {project.bucket.provider.toUpperCase()}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {project.bucket.region
+                  ? `${project.bucket.region} region`
+                  : "Default region"}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -132,7 +155,9 @@ export function AppOverview({ appId }: AppOverviewProps) {
             <Key className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{project._count?.tokens || 0}</div>
+            <div className="text-2xl font-bold">
+              {project._count?.tokens || 0}
+            </div>
             <p className="text-xs text-muted-foreground">Active tokens</p>
           </CardContent>
         </Card>
@@ -143,16 +168,18 @@ export function AppOverview({ appId }: AppOverviewProps) {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{project._count?.versions || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Project versions
-            </p>
+            <div className="text-2xl font-bold">
+              {project._count?.versions || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Project versions</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tenant Support</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Tenant Support
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -177,8 +204,9 @@ export function AppOverview({ appId }: AppOverviewProps) {
           </CardHeader>
           <CardContent>
             <p className="text-purple-700">
-              This project supports multiple tenants. Each tenant will have their own isolated file storage and API access.
-              You can manage tenants from the Tenants tab in the sidebar.
+              This project supports multiple tenants. Each tenant will have
+              their own isolated file storage and API access. You can manage
+              tenants from the Tenants tab in the sidebar.
             </p>
           </CardContent>
         </Card>
@@ -220,12 +248,14 @@ export function AppOverview({ appId }: AppOverviewProps) {
                 </span>
               </div>
             )}
-            <div className="flex items-center justify-between text-sm">
-              <span>Bucket connected: {project.bucket.name}</span>
-              <span className="text-muted-foreground">
-                {new Date(project.updatedAt).toLocaleDateString()}
-              </span>
-            </div>
+            {project.bucket && (
+              <div className="flex items-center justify-between text-sm">
+                <span>Bucket connected: {project.bucket.name}</span>
+                <span className="text-muted-foreground">
+                  {new Date(project.updatedAt).toLocaleDateString()}
+                </span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

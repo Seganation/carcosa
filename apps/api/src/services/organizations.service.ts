@@ -1,5 +1,9 @@
 import { PrismaClient } from "@carcosa/database";
-import { TeamRole, OrganizationRole, InvitationStatus } from "../types/enums.js";
+import {
+  TeamRole,
+  OrganizationRole,
+  InvitationStatus,
+} from "../types/enums.js";
 
 const prisma = new PrismaClient();
 
@@ -95,10 +99,7 @@ export class OrganizationsService {
     const organization = await prisma.organization.findFirst({
       where: {
         id,
-        OR: [
-          { ownerId: userId },
-          { members: { some: { userId } } },
-        ],
+        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
       },
       include: {
         owner: {
@@ -143,10 +144,7 @@ export class OrganizationsService {
   async getUserOrganizations(userId: string) {
     return await prisma.organization.findMany({
       where: {
-        OR: [
-          { ownerId: userId },
-          { members: { some: { userId } } },
-        ],
+        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
       },
       include: {
         owner: {
@@ -181,7 +179,11 @@ export class OrganizationsService {
     });
   }
 
-  async createTeam(data: CreateTeamData, organizationId: string, userId: string) {
+  async createTeam(
+    data: CreateTeamData,
+    organizationId: string,
+    userId: string
+  ) {
     // Check if user has permission to create teams in this organization
     const membership = await prisma.organizationMember.findFirst({
       where: {
@@ -336,7 +338,9 @@ export class OrganizationsService {
       });
 
       if (!orgMembership) {
-        throw new Error("Insufficient permissions to invite users to organization");
+        throw new Error(
+          "Insufficient permissions to invite users to organization"
+        );
       }
     }
 
@@ -687,7 +691,11 @@ export class OrganizationsService {
   // ORGANIZATION UPDATE & DELETE
   // ============================================
 
-  async updateOrganization(id: string, data: UpdateOrganizationData, userId: string) {
+  async updateOrganization(
+    id: string,
+    data: UpdateOrganizationData,
+    userId: string
+  ) {
     // Check if user has permission (OWNER or ADMIN)
     const membership = await prisma.organizationMember.findFirst({
       where: {
@@ -746,9 +754,14 @@ export class OrganizationsService {
     }
 
     // Check if there are active projects
-    const projectCount = organization.teams.reduce((sum, team) => sum + team.projects.length, 0);
+    const projectCount = organization.teams.reduce(
+      (sum, team) => sum + team.projects.length,
+      0
+    );
     if (projectCount > 0) {
-      throw new Error(`Cannot delete organization with ${projectCount} active projects. Delete projects first.`);
+      throw new Error(
+        `Cannot delete organization with ${projectCount} active projects. Delete projects first.`
+      );
     }
 
     // Delete organization (will cascade delete teams, members, invitations)
@@ -786,13 +799,11 @@ export class OrganizationsService {
             id: true,
             name: true,
             email: true,
-            createdAt: true,
           },
         },
       },
       orderBy: [
-        { role: 'asc' }, // OWNER first, then ADMIN, MEMBER, VIEWER
-        { createdAt: 'asc' },
+        { role: "asc" }, // OWNER first, then ADMIN, MEMBER, VIEWER
       ],
     });
   }
@@ -836,7 +847,10 @@ export class OrganizationsService {
     }
 
     // Only owner can promote to OWNER role
-    if (newRole === OrganizationRole.OWNER && updaterMembership.role !== OrganizationRole.OWNER) {
+    if (
+      newRole === OrganizationRole.OWNER &&
+      updaterMembership.role !== OrganizationRole.OWNER
+    ) {
       throw new Error("Only the current owner can assign the OWNER role");
     }
 
@@ -855,7 +869,11 @@ export class OrganizationsService {
     });
   }
 
-  async removeOrganizationMember(organizationId: string, memberId: string, removedBy: string) {
+  async removeOrganizationMember(
+    organizationId: string,
+    memberId: string,
+    removedBy: string
+  ) {
     // Check if remover has permission (OWNER or ADMIN)
     const removerMembership = await prisma.organizationMember.findFirst({
       where: {
@@ -926,7 +944,8 @@ export class OrganizationsService {
       (m) => m.role === TeamRole.OWNER || m.role === TeamRole.ADMIN
     );
     const isOrgAdmin = team.organization.members.some(
-      (m) => m.role === OrganizationRole.OWNER || m.role === OrganizationRole.ADMIN
+      (m) =>
+        m.role === OrganizationRole.OWNER || m.role === OrganizationRole.ADMIN
     );
 
     if (!isTeamAdmin && !isOrgAdmin) {
@@ -980,21 +999,27 @@ export class OrganizationsService {
 
     // Only team OWNER or org OWNER can delete
     const isTeamOwner = team.members.some((m) => m.role === TeamRole.OWNER);
-    const isOrgOwner = team.organization.members.some((m) => m.role === OrganizationRole.OWNER);
+    const isOrgOwner = team.organization.members.some(
+      (m) => m.role === OrganizationRole.OWNER
+    );
 
     if (!isTeamOwner && !isOrgOwner) {
-      throw new Error("Insufficient permissions to delete team. Only team owner or organization owner can delete.");
+      throw new Error(
+        "Insufficient permissions to delete team. Only team owner or organization owner can delete."
+      );
     }
 
     // Check if team has active projects
     if (team.projects.length > 0) {
-      throw new Error(`Cannot delete team with ${team.projects.length} active projects. Delete projects first.`);
+      throw new Error(
+        `Cannot delete team with ${team.projects.length} active projects. Delete projects first.`
+      );
     }
 
-    // Check if team owns buckets that are in use
+    // Check if team owns any buckets that are in use by projects
     const bucketsInUse = await prisma.bucket.findMany({
       where: {
-        teamId: id,
+        ownerTeamId: id,
         projects: {
           some: {},
         },
@@ -1002,7 +1027,9 @@ export class OrganizationsService {
     });
 
     if (bucketsInUse.length > 0) {
-      throw new Error(`Cannot delete team. ${bucketsInUse.length} buckets owned by this team are in use by projects.`);
+      throw new Error(
+        `Cannot delete team. ${bucketsInUse.length} buckets owned by this team are in use by projects.`
+      );
     }
 
     // Delete team (will cascade delete members)
@@ -1043,13 +1070,11 @@ export class OrganizationsService {
             id: true,
             name: true,
             email: true,
-            createdAt: true,
           },
         },
       },
       orderBy: [
-        { role: 'asc' }, // OWNER first, then ADMIN, MEMBER, VIEWER
-        { createdAt: 'asc' },
+        { role: "asc" }, // OWNER first, then ADMIN, MEMBER, VIEWER
       ],
     });
   }
@@ -1085,7 +1110,8 @@ export class OrganizationsService {
       (m) => m.role === TeamRole.OWNER || m.role === TeamRole.ADMIN
     );
     const isOrgAdmin = team.organization.members.some(
-      (m) => m.role === OrganizationRole.OWNER || m.role === OrganizationRole.ADMIN
+      (m) =>
+        m.role === OrganizationRole.OWNER || m.role === OrganizationRole.ADMIN
     );
 
     if (!isTeamAdmin && !isOrgAdmin) {
@@ -1105,7 +1131,9 @@ export class OrganizationsService {
     if (newRole === TeamRole.OWNER) {
       const isTeamOwner = team.members.some((m) => m.role === TeamRole.OWNER);
       if (!isTeamOwner) {
-        throw new Error("Only the current team owner can assign the OWNER role");
+        throw new Error(
+          "Only the current team owner can assign the OWNER role"
+        );
       }
     }
 
@@ -1150,7 +1178,8 @@ export class OrganizationsService {
       (m) => m.role === TeamRole.OWNER || m.role === TeamRole.ADMIN
     );
     const isOrgAdmin = team.organization.members.some(
-      (m) => m.role === OrganizationRole.OWNER || m.role === OrganizationRole.ADMIN
+      (m) =>
+        m.role === OrganizationRole.OWNER || m.role === OrganizationRole.ADMIN
     );
 
     if (!isTeamAdmin && !isOrgAdmin) {
