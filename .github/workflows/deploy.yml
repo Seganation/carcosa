@@ -106,7 +106,7 @@ jobs:
       - name: Trigger Coolify Deployment for API
         if: success()
         run: |
-          curl -X GET "https://coolify.rawadara.com/api/v1/deploy?uuid=yoo888gwo0cw4ccccswoskc4&force=false"
+          curl -X POST -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" "${{ secrets.COOLIFY_API_WEBHOOK_URL }}"
 
   # Frontend web deployment (runs after API deployment completes)
   web-deploy:
@@ -176,4 +176,4 @@ jobs:
       - name: Trigger Coolify Deployment for Web
         if: success()
         run: |
-          curl -X GET "${{ secrets.COOLIFY_WEB_WEBHOOK_URL }}"
+          curl -X POST -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" "${{ secrets.COOLIFY_WEB_WEBHOOK_URL }}"
