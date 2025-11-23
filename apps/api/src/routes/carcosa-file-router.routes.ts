@@ -35,56 +35,19 @@ const router = Router();
 // STORAGE MANAGER INITIALIZATION
 // ============================================================================
 
+// NOTE: Storage providers are NOT initialized from environment variables.
+// Carcosa is a BYOS (Bring Your Own Storage) platform - users provide their
+// own S3/R2 credentials via the Bucket table in the database.
+//
+// Storage adapters are created per-request using the project's bucket configuration
+// via getAdapterForProject() in storage.service.ts
+//
+// The file-router's StorageManager is only used for abstraction/demo purposes.
+// In production, all storage operations use the database-configured buckets.
+
 const storageManager = createStorageManager();
 
-// Initialize storage manager with providers
-// In production, these would come from environment variables and database bucket config
-async function initializeStorageProviders() {
-  try {
-    // Add S3 provider (example - would be configured per-project in production)
-    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-      const s3Config: S3Config = {
-        provider: 's3',
-        region: process.env.AWS_REGION || 'us-east-1',
-        bucket: process.env.AWS_S3_BUCKET || 'carcosa-uploads',
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-        endpoint: process.env.AWS_ENDPOINT,
-      };
-      await storageManager.addProvider('s3-primary', s3Config);
-      console.log('✅ [file-router] S3 storage provider initialized');
-    }
-
-    // Add R2 provider (Cloudflare R2)
-    if (process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY && process.env.R2_ACCOUNT_ID) {
-      const r2Config: R2Config = {
-        provider: 'r2',
-        accountId: process.env.R2_ACCOUNT_ID,
-        bucket: process.env.R2_BUCKET || 'carcosa-uploads',
-        endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-        credentials: {
-          accessKeyId: process.env.R2_ACCESS_KEY_ID,
-          secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-        },
-      };
-      await storageManager.addProvider('r2-primary', r2Config);
-      console.log('✅ [file-router] R2 storage provider initialized');
-    }
-
-    // If no providers configured, log warning
-    if (storageManager.getAllProviders().size === 0) {
-      console.warn('⚠️ [file-router] No storage providers configured. Upload functionality will be limited.');
-      console.warn('   Set AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY or R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY');
-    }
-  } catch (error) {
-    console.error('❌ [file-router] Failed to initialize storage providers:', error);
-  }
-}
-
-// Initialize storage on module load
-initializeStorageProviders();
+console.log('✅ [file-router] Storage manager initialized (BYOS - credentials from database)');
 
 // ============================================================================
 // REALTIME SYSTEM INITIALIZATION
@@ -363,21 +326,20 @@ uploadRouter.addRouteFromBuilder(
 
 // Health check endpoint
 router.get('/health', (_req: Request, res: Response) => {
-  const providers = storageManager.getAllProviders();
-
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     features: {
       upload: true,
-      storage: true,
+      storage: 'byos', // Bring Your Own Storage
       realtime: true,
       multiProvider: true,
     },
     storage: {
-      providers: Array.from(providers.keys()),
-      defaultProvider: storageManager.getDefaultProvider(),
+      mode: 'BYOS (Bring Your Own Storage)',
+      supported: ['AWS S3', 'Cloudflare R2', 'MinIO', 'Any S3-compatible'],
+      note: 'Storage credentials configured per-project via database',
     },
     realtime: {
       enabled: true,
@@ -573,17 +535,19 @@ router.get('/realtime', (_req: Request, res: Response) => {
 });
 
 // Storage statistics endpoint
+// NOTE: This endpoint would aggregate stats across all user-configured buckets
 router.get('/storage/stats', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const stats = await storageManager.getOverallStats();
-    const costs = await storageManager.getStorageCosts();
-    const health = await storageManager.healthCheck();
-
+    // In a full implementation, this would:
+    // 1. Get all buckets the user has access to
+    // 2. Query each bucket's storage stats
+    // 3. Aggregate the results
+    // For now, return a placeholder response
     res.json({
-      stats,
-      costs,
-      health,
+      mode: 'BYOS',
+      message: 'Storage stats are aggregated from user-configured buckets',
       timestamp: new Date().toISOString(),
+      note: 'Configure buckets via the Buckets API to see storage statistics',
     });
   } catch (error) {
     console.error('[file-router] Storage stats error:', error);

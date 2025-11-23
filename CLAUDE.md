@@ -18,8 +18,14 @@ This is a TypeScript monorepo using:
 ### Development
 
 ```bash
-# Start local infrastructure (Postgres, Redis, MinIO)
-docker compose up -d
+# Start local infrastructure (Postgres only - minimal setup)
+docker compose up -d postgres
+
+# Or start with Redis (recommended)
+docker compose --profile redis up -d
+
+# Or start everything including MinIO for local testing (optional)
+docker compose --profile full up -d
 
 # Install dependencies
 npm install
@@ -252,20 +258,35 @@ All packages use **strict TypeScript** with `NodeNext` module resolution. This r
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and configure:
+**⚠️ IMPORTANT: BYOS (Bring Your Own Storage) Architecture**
+
+Carcosa does NOT require R2/S3 storage credentials in environment variables. Users provide their own storage credentials through the web dashboard, which are encrypted and stored in the database.
+
+**Required environment variables:**
 - `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection (optional, falls back to Postgres for rate limiting)
-- `ENCRYPTION_KEY` - 32-byte hex key for encrypting bucket credentials
+- `CREDENTIALS_ENCRYPTION_KEY` - base64-encoded key for encrypting user bucket credentials (generate with: `node -e "console.log('base64:' + require('crypto').randomBytes(32).toString('base64'))"`)
+- `JWT_SECRET` - JWT signing secret (min 32 characters)
 - `API_URL`, `API_PORT` - API server configuration
 - `NEXT_PUBLIC_API_URL` - API URL for frontend
 - `NEXTAUTH_SECRET` - NextAuth session secret
+
+**Optional:**
+- `REDIS_URL` - Redis connection (optional, falls back to in-memory for rate limiting)
+
+**NOT NEEDED:**
+- ❌ R2 credentials (users configure in dashboard)
+- ❌ S3 credentials (users configure in dashboard)
+- ❌ MinIO credentials (optional for local testing only)
 
 ### Testing Setup
 
 After initial clone:
 ```bash
 cp .env.example .env
-docker compose up -d
+# Edit .env and generate CREDENTIALS_ENCRYPTION_KEY:
+# node -e "console.log('base64:' + require('crypto').randomBytes(32).toString('base64'))"
+
+docker compose up -d postgres
 npm install
 npm run build
 npm run --workspace @carcosa/database db:push
@@ -277,16 +298,38 @@ API runs on `http://localhost:4000`, web dashboard on `http://localhost:3000`.
 
 ## Key Implementation Patterns
 
-### Multi-Storage Support
+### BYOS (Bring Your Own Storage) Architecture
 
-Projects can use any S3-compatible bucket (S3, R2, MinIO). The storage adapter is selected based on the bucket's provider:
+**How it works:**
+1. Users provide their S3/R2 credentials via the web dashboard
+2. Credentials are encrypted using `CREDENTIALS_ENCRYPTION_KEY` (libsodium)
+3. Encrypted credentials stored in the `Bucket` table
+4. On each file operation, credentials are decrypted on-demand
+5. Storage adapter created per-request from database bucket configuration
 
+**Storage adapter selection:**
 ```typescript
 // apps/api/src/services/storage.service.ts
+const bucket = await prisma.bucket.findFirst({ where: { id: bucketId } });
+const accessKeyId = await decryptWithKey(env.CREDENTIALS_ENCRYPTION_KEY, bucket.encryptedAccessKey);
+const secretAccessKey = await decryptWithKey(env.CREDENTIALS_ENCRYPTION_KEY, bucket.encryptedSecretKey);
+
 const adapter = bucket.provider === 'r2'
-  ? new R2Adapter(config)
-  : new S3Adapter(config);
+  ? new R2Adapter({ bucketName, accessKeyId, secretAccessKey, ... })
+  : new S3Adapter({ bucketName, accessKeyId, secretAccessKey, ... });
 ```
+
+**Supported storage providers:**
+- AWS S3
+- Cloudflare R2
+- MinIO
+- Any S3-compatible storage
+
+**Key benefits:**
+- ✅ Platform operator never sees user storage credentials
+- ✅ Each team can use different storage providers
+- ✅ Users control their own data and costs
+- ✅ No vendor lock-in
 
 ### Multi-Tenant File Paths
 

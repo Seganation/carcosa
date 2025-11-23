@@ -23,13 +23,8 @@ export const Env = z
 
     REDIS_URL: z.string().url().optional(),
 
-    // Required for encrypting bucket credentials
+    // Required for encrypting/decrypting user-provided bucket credentials
     CREDENTIALS_ENCRYPTION_KEY: z.string().startsWith("base64:").min(10).default("base64:testkeyfortestingonly123456789"),
-
-    MINIO_ENDPOINT: z.string().optional(),
-    MINIO_ACCESS_KEY: z.string().optional(),
-    MINIO_SECRET_KEY: z.string().optional(),
-    MINIO_BUCKET: z.string().optional(),
   })
   .transform((e) => ({ ...e, API_PORT: Number(e.API_PORT) }));
 

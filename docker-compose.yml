@@ -15,7 +15,13 @@ services:
     image: redis:7
     ports:
       - "6379:6379"
+    profiles:
+      - full
+      - redis
 
+  # MinIO is optional for local development
+  # Users will bring their own S3/R2 storage in production
+  # To start MinIO: docker compose --profile minio up -d
   minio:
     image: minio/minio:RELEASE.2024-12-07T01-43-25Z
     command: server /data --console-address ":9001"
@@ -27,6 +33,9 @@ services:
       - "9001:9001"
     volumes:
       - minio:/data
+    profiles:
+      - full
+      - minio
 
 volumes:
   pgdata:
