@@ -127,6 +127,7 @@ export function useNativeUpload(options: NativeUploadOptions) {
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!file) continue;
       const result = await uploadFile(file);
       if (result) {
         results.push(result);
@@ -219,8 +220,9 @@ export function useNativeDocumentPicker(uploadOptions: NativeUploadOptions) {
 }
 
 // Export all React Native utilities
-export * from './camera-upload';
-export * from './background-upload';
+// TODO: Implement camera-upload and background-upload modules
+// export * from './camera-upload.js';
+// export * from './background-upload.js';
 
 // Native-specific upload utilities
 export const NativeUploadUtils = {
