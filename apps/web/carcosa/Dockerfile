@@ -76,7 +76,7 @@ WORKDIR /app/apps/web/carcosa
 # Make sure we have the necessary next.js files
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/.next ./.next
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/public ./public
-COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/next.config.mjs ./
+COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/next.config.js ./
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/carcosa/package.json ./
 
 # Make sure next.js is properly installed
@@ -90,13 +90,16 @@ COPY --from=builder --chown=nodejs:nodejs /app/node_modules /app/node_modules
 # Copy database files for direct access
 COPY --from=builder --chown=nodejs:nodejs /app/packages/database/dist /app/packages/database/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/database/prisma /app/packages/database/prisma
-COPY --from=builder --chown=nodejs:nodejs /app/packages/database/generated /app/packages/database/generated
 
 # Copy built packages
 COPY --from=builder --chown=nodejs:nodejs /app/packages/types/dist /app/packages/types/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/sdk/dist /app/packages/sdk/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/cmage/dist /app/packages/cmage/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/ui/dist /app/packages/ui/dist
+
+# Copy UI source files (no build output - exports source directly)
+COPY --from=builder --chown=nodejs:nodejs /app/packages/ui/src /app/packages/ui/src
+COPY --from=builder --chown=nodejs:nodejs /app/packages/ui/@carcosa /app/packages/ui/@carcosa
+COPY --from=builder --chown=nodejs:nodejs /app/packages/ui/package.json /app/packages/ui/package.json
 
 # Make sure logs directory exists and has proper permissions
 RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app/logs
