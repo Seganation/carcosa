@@ -7,8 +7,8 @@ WORKDIR /app
 RUN npm install -g turbo
 COPY . .
 
-# Use turbo prune with api and explicitly include database package
-RUN turbo prune --scope=api --scope=@carcosa/database --docker
+# Use turbo prune with api scope
+RUN turbo prune --scope=api --docker
 
 FROM base AS installer
 RUN apk add --no-cache libc6-compat
@@ -18,77 +18,90 @@ RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    vips-dev
+    vips-dev \
+    fftw-dev \
+    gettext-dev \
+    lcms2-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    libwebp-dev \
+    tiff-dev \
+    giflib-dev \
+    libxml2-dev \
+    librsvg-dev \
+    libexif-dev
 WORKDIR /app
 
-# Copy package files
+# Copy package files from pruned output
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/package-lock.json ./package-lock.json
 
-# Install dependencies with cache mount for faster rebuilds
+# Install ALL dependencies (including sharp with proper native builds)
 RUN --mount=type=cache,target=/root/.npm \
-    npm install
+    npm install --legacy-peer-deps
 
+# Copy source code from pruned output
 COPY --from=builder /app/out/full/ .
 COPY turbo.json turbo.json
 
-# Generate Prisma client
-RUN cd packages/database && \
-    npx prisma generate
+# Generate Prisma client FIRST (needed by database package)
+RUN npx prisma generate --schema=./packages/database/prisma/schema.prisma
 
-# Build database package first
-RUN cd packages/database && npm run build
-
-# Build types package (required by storage and file-router)
-RUN cd packages/types && npm run build
-
-# Build storage package (required by file-router)
-RUN cd packages/storage && npm run build
-
-# Build file-router package (required by API)
-RUN cd packages/file-router && npm run build
-
-# Build API using the proper build script
-RUN cd apps/api && npm run build
+# Build all packages in correct dependency order
+RUN npm run build --workspace=@carcosa/database
+RUN npm run build --workspace=@carcosa/types
+RUN npm run build --workspace=@carcosa/storage
+RUN npm run build --workspace=@carcosa/file-router
+RUN npm run build --workspace=api
 
 FROM base AS runner
 WORKDIR /app
 
-# Install required dependencies for production (including vips for sharp)
-RUN apk add --no-cache wget curl vips
+# Install ALL runtime dependencies for sharp and other native modules
+RUN apk add --no-cache \
+    wget \
+    curl \
+    vips \
+    fftw \
+    gettext \
+    lcms2 \
+    libpng \
+    libjpeg-turbo \
+    libwebp \
+    tiff \
+    giflib \
+    libxml2 \
+    librsvg \
+    libexif
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Set up directory structure
-RUN mkdir -p /app/prisma /app/logs && \
-    chown -R nodejs:nodejs /app/logs
+# Copy built application
+COPY --from=installer --chown=nodejs:nodejs /app/apps/api/dist ./dist
 
-# Copy API files
-COPY --from=installer /app/apps/api/dist ./dist
+# Copy complete node_modules with all dependencies
+COPY --from=installer --chown=nodejs:nodejs /app/node_modules ./node_modules
 
-# Copy prisma directory (schema + migrations)
-COPY --from=installer /app/packages/database/prisma ./prisma/
+# Copy package structure for workspace packages
+COPY --from=installer --chown=nodejs:nodejs /app/packages/database/dist ./packages/database/dist
+COPY --from=installer --chown=nodejs:nodejs /app/packages/database/package.json ./packages/database/package.json
+COPY --from=installer --chown=nodejs:nodejs /app/packages/database/prisma ./packages/database/prisma
 
-# Copy the entire node_modules from root (includes all dependencies)
-COPY --from=installer /app/node_modules ./node_modules
+COPY --from=installer --chown=nodejs:nodejs /app/packages/types/dist ./packages/types/dist
+COPY --from=installer --chown=nodejs:nodejs /app/packages/types/package.json ./packages/types/package.json
 
-# Copy all required @carcosa packages
-COPY --from=installer /app/packages/database/dist ./node_modules/@carcosa/database/dist
-COPY --from=installer /app/packages/database/prisma ./node_modules/@carcosa/database/prisma
-COPY --from=installer /app/packages/database/package.json ./node_modules/@carcosa/database/package.json
+COPY --from=installer --chown=nodejs:nodejs /app/packages/storage/dist ./packages/storage/dist
+COPY --from=installer --chown=nodejs:nodejs /app/packages/storage/package.json ./packages/storage/package.json
 
-COPY --from=installer /app/packages/types/dist ./node_modules/@carcosa/types/dist
-COPY --from=installer /app/packages/types/package.json ./node_modules/@carcosa/types/package.json
+COPY --from=installer --chown=nodejs:nodejs /app/packages/file-router/dist ./packages/file-router/dist
+COPY --from=installer --chown=nodejs:nodejs /app/packages/file-router/package.json ./packages/file-router/package.json
 
-COPY --from=installer /app/packages/storage/dist ./node_modules/@carcosa/storage/dist
-COPY --from=installer /app/packages/storage/package.json ./node_modules/@carcosa/storage/package.json
+# Copy root package.json for workspace resolution
+COPY --from=installer --chown=nodejs:nodejs /app/package.json ./package.json
 
-COPY --from=installer /app/packages/file-router/dist ./node_modules/@carcosa/file-router/dist
-COPY --from=installer /app/packages/file-router/package.json ./node_modules/@carcosa/file-router/package.json
-
-# Set ownership
-RUN chown -R nodejs:nodejs /app
+# Create logs directory
+RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app/logs
 
 # Switch to non-root user
 USER nodejs
