@@ -79,6 +79,7 @@ RUN adduser --system --uid 1001 nodejs
 
 # Copy root package.json for workspace resolution FIRST
 COPY --from=installer --chown=nodejs:nodejs /app/package.json ./package.json
+COPY --from=installer --chown=nodejs:nodejs /app/package-lock.json ./package-lock.json
 
 # Copy complete node_modules with all dependencies (including sharp)
 COPY --from=installer --chown=nodejs:nodejs /app/node_modules ./node_modules
@@ -103,6 +104,9 @@ COPY --from=installer --chown=nodejs:nodejs /app/packages/file-router/package.js
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app/logs
+
+# Create a symlink from apps/api/node_modules to the root node_modules for module resolution
+RUN ln -sf /app/node_modules /app/apps/api/node_modules && chown -h nodejs:nodejs /app/apps/api/node_modules
 
 # Switch to non-root user
 USER nodejs
