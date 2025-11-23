@@ -1,16 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../ui/card";
+import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { ListSkeleton } from "../ui/card-skeleton";
-import { Key, Loader2, AlertCircle } from "lucide-react";
+import { Key, Loader2, AlertCircle, Copy, Eye, EyeOff } from "lucide-react";
 import { Button } from "../ui/button";
+import { toast } from "react-hot-toast";
 import { CreateApiKeyDialog } from "./create-api-key-dialog";
 import { RegenerateApiKeyDialog } from "./regenerate-api-key-dialog";
 import { RevokeApiKeyDialog } from "./revoke-api-key-dialog";
 import { apiBase, withAuth } from "@/lib/api";
-import { toast } from "react-hot-toast";
 
 interface AppApiKeysProps {
   appId: string;
@@ -34,10 +41,41 @@ export function AppApiKeys({ appId }: AppApiKeysProps) {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [storedKeys, setStoredKeys] = useState<Record<string, string>>({});
+  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchApiKeys();
+    loadStoredKeys();
   }, [appId]);
+
+  const loadStoredKeys = () => {
+    // Load all stored API keys for this project from localStorage
+    const keys: Record<string, string> = {};
+
+    // Check for default key (from project creation)
+    const defaultKey = localStorage.getItem(
+      `carcosa_project_${appId}_default_key`
+    );
+    if (defaultKey) {
+      keys["default"] = defaultKey;
+    }
+
+    // Check for any other keys created manually
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(`carcosa_project_${appId}_api_key_`)) {
+        const keyId = key.replace(`carcosa_project_${appId}_api_key_`, "");
+        const value = localStorage.getItem(key);
+        if (value) {
+          keys[keyId] = value;
+        }
+      }
+    }
+
+    console.log("Loaded stored keys:", keys);
+    setStoredKeys(keys);
+  };
 
   const fetchApiKeys = async () => {
     try {
@@ -122,7 +160,13 @@ export function AppApiKeys({ appId }: AppApiKeysProps) {
             Manage API keys for programmatic access to your project
           </p>
         </div>
-        <CreateApiKeyDialog projectId={appId} onSuccess={fetchApiKeys} />
+        <CreateApiKeyDialog
+          projectId={appId}
+          onSuccess={() => {
+            fetchApiKeys();
+            loadStoredKeys();
+          }}
+        />
       </div>
 
       {/* Error State */}
@@ -181,7 +225,7 @@ export function AppApiKeys({ appId }: AppApiKeysProps) {
                     }`}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="space-y-2 flex-1">
+                      <div className="space-y-3 flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="font-medium">
                             {apiKey.label || `API Key ${apiKey.id.slice(-8)}`}
@@ -190,6 +234,54 @@ export function AppApiKeys({ appId }: AppApiKeysProps) {
                             <Badge variant="destructive">Revoked</Badge>
                           )}
                         </div>
+
+                        {/* API Key Display */}
+                        {(storedKeys[apiKey.id] || storedKeys["default"]) && (
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              value={
+                                visibleKeys[apiKey.id]
+                                  ? `CARCOSA_APP_SECRET=${storedKeys[apiKey.id] || storedKeys["default"]}`
+                                  : `CARCOSA_APP_SECRET=crcsa_${"•".repeat(28)}${(storedKeys[apiKey.id] || storedKeys["default"]).slice(-4)}`
+                              }
+                              readOnly
+                              className="font-mono text-xs bg-muted/50"
+                            />
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setVisibleKeys({
+                                  ...visibleKeys,
+                                  [apiKey.id]: !visibleKeys[apiKey.id],
+                                });
+                              }}
+                            >
+                              {visibleKeys[apiKey.id] ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                const key =
+                                  storedKeys[apiKey.id] ||
+                                  storedKeys["default"];
+                                navigator.clipboard.writeText(
+                                  `CARCOSA_APP_SECRET=${key}`
+                                );
+                                toast.success(
+                                  "API key copied with env variable!"
+                                );
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
 
                         <div className="flex gap-1 flex-wrap">
                           {apiKey.permissions.map((permission) => (

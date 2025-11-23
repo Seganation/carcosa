@@ -21,9 +21,14 @@ export function authMiddleware(
     }
 
     const env = Env.parse(process.env);
-    const payload = jwt.verify(token, env.JWT_SECRET) as { userId: string };
+    const payload = jwt.verify(token, env.JWT_SECRET) as { userId: string; email?: string };
 
+    // Set both userId (for backward compatibility) and user object (for permissions)
     req.userId = payload.userId;
+    req.user = {
+      id: payload.userId,
+      email: payload.email,
+    };
     next();
   } catch (error) {
     console.error("❌ Auth middleware error:", error);
@@ -47,8 +52,12 @@ export function optionalAuthMiddleware(
 
     if (token) {
       const env = Env.parse(process.env);
-      const payload = jwt.verify(token, env.JWT_SECRET) as { userId: string };
+      const payload = jwt.verify(token, env.JWT_SECRET) as { userId: string; email?: string };
       req.userId = payload.userId;
+      req.user = {
+        id: payload.userId,
+        email: payload.email,
+      };
     }
 
     next();

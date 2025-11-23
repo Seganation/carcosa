@@ -89,7 +89,7 @@ class ProjectsAPI {
     return this.request(`/api/v1/projects/${id}`);
   }
 
-  async create(data: CreateProjectRequest): Promise<{ project: Project }> {
+  async create(data: CreateProjectRequest): Promise<Project & { defaultApiKey?: string }> {
     const url = new URL(`${this.baseUrl}/api/v1/projects`);
     if (data.teamId) {
       url.searchParams.append('teamId', data.teamId);

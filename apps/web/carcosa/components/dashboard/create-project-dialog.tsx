@@ -15,7 +15,15 @@ import {
 } from "../ui/select";
 import { Card, CardContent } from "../ui/card";
 import { Switch } from "../ui/switch";
-import { Database, Loader2, Users, Building2 } from "lucide-react";
+import {
+  Database,
+  Loader2,
+  Users,
+  Building2,
+  Key,
+  Copy,
+  CheckCircle,
+} from "lucide-react";
 import { projectsAPI } from "@/lib/projects-api";
 import { bucketsAPI, type Bucket } from "@/lib/buckets-api";
 import { useTeam } from "../../contexts/team-context";
@@ -41,6 +49,7 @@ export function CreateProjectDialog({
   const [loadingBuckets, setLoadingBuckets] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
 
   const { teams, currentTeam } = useTeam();
 
@@ -94,7 +103,8 @@ export function CreateProjectDialog({
       name: projectName.trim(),
       slug: projectSlug.trim(),
       bucketId: selectedBucketId,
-      teamId: selectedTeamId === "personal" ? undefined : selectedTeamId || undefined,
+      teamId:
+        selectedTeamId === "personal" ? undefined : selectedTeamId || undefined,
       multiTenant,
     });
 
@@ -113,16 +123,25 @@ export function CreateProjectDialog({
     setErrors({});
     setIsCreating(true);
     try {
-      await projectsAPI.create({
+      const response = await projectsAPI.create({
         ...parsed.data,
         multiTenant: parsed.data.multiTenant ?? false,
       });
 
+      // Capture the auto-generated API key (shown only once)
+      if (response.defaultApiKey) {
+        setGeneratedApiKey(response.defaultApiKey);
+        // Store in localStorage for Quick Copy section
+        localStorage.setItem(
+          `carcosa_project_${response.id}_default_key`,
+          response.defaultApiKey
+        );
+      }
+
       toast.success("Project created successfully!");
-      onOpenChange(false);
       onSuccess?.();
 
-      // Reset form
+      // Reset form (but keep dialog open to show API key)
       resetForm();
     } catch (error) {
       console.error("Failed to create project:", error);
@@ -140,13 +159,23 @@ export function CreateProjectDialog({
     setSelectedBucketId("");
     setSelectedTeamId("personal");
     setMultiTenant(false);
+    setGeneratedApiKey(null);
+  };
+
+  const copyApiKey = () => {
+    if (generatedApiKey) {
+      navigator.clipboard.writeText(generatedApiKey);
+      toast.success("API key copied to clipboard!");
+    }
   };
 
   const selectedBucket = buckets.find(
     (bucket) => bucket.id === selectedBucketId
   );
 
-  const selectedTeam = teams.find((team) => team.id === selectedTeamId && selectedTeamId !== "personal");
+  const selectedTeam = teams.find(
+    (team) => team.id === selectedTeamId && selectedTeamId !== "personal"
+  );
 
   return (
     <Dialog
@@ -354,29 +383,83 @@ export function CreateProjectDialog({
             </Card>
           )}
 
+          {/* Auto-generated API Key Display */}
+          {generatedApiKey && (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="font-medium text-green-900">
+                    Project Created Successfully!
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Key className="h-4 w-4 text-green-700" />
+                    <Label className="text-green-900 font-medium">
+                      Your API Key (Save this now!)
+                    </Label>
+                  </div>
+                  <p className="text-xs text-green-700">
+                    This is your project's secret API key. Store it securely -
+                    it won't be shown again.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={generatedApiKey}
+                      readOnly
+                      className="font-mono text-sm bg-white"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={copyApiKey}
+                      className="shrink-0"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-              disabled={isCreating}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                !projectName ||
-                !projectSlug ||
-                !selectedBucketId ||
-                buckets.length === 0 ||
-                isCreating
-              }
-              className="flex-1 bg-orange-500 hover:bg-orange-600"
-            >
-              {isCreating ? "Creating..." : "Create Project"}
-            </Button>
+            {generatedApiKey ? (
+              <Button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                Close
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="flex-1"
+                  disabled={isCreating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    !projectName ||
+                    !projectSlug ||
+                    !selectedBucketId ||
+                    buckets.length === 0 ||
+                    isCreating
+                  }
+                  className="flex-1 bg-orange-500 hover:bg-orange-600"
+                >
+                  {isCreating ? "Creating..." : "Create Project"}
+                </Button>
+              </>
+            )}
           </div>
         </form>
       </DialogContent>

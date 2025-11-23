@@ -39,7 +39,7 @@ export function CreateApiKeyDialog({
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     label: "",
-    permissions: ["read", "write"],
+    permissions: ["files:read", "files:write"],
   });
   const [isCreating, setIsCreating] = useState(false);
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
@@ -69,28 +69,44 @@ export function CreateApiKeyDialog({
     setErrors({});
     setIsCreating(true);
     try {
+      const payload = {
+        label: formData.label.trim() || undefined,
+        permissions: formData.permissions,
+      };
+      console.log("Sending API key create request:", payload);
+
       const response = await fetch(
         `${apiBase()}/api/v1/projects/${projectId}/api-keys`,
         {
           method: "POST",
           headers: { ...withAuth(), "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({
-            label: formData.label.trim() || undefined,
-            permissions: formData.permissions,
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
       if (!response.ok) {
         const error = await response.json();
+        console.error("API Key creation failed:", error);
+        if (error.details) {
+          console.error("Validation details:", error.details);
+        }
         throw new Error(error.error || "Failed to create API key");
       }
 
       const data = await response.json();
       setNewlyCreatedKey(data.apiKey);
+
+      // Store in localStorage for Quick Copy feature
+      if (data.apiKey) {
+        localStorage.setItem(
+          `carcosa_project_${projectId}_api_key_${data.apiKeyRecord.id}`,
+          data.apiKey
+        );
+      }
+
       setOpen(false);
-      setFormData({ label: "", permissions: ["read", "write"] });
+      setFormData({ label: "", permissions: ["files:read", "files:write"] });
       onSuccess?.();
       toast.success("API key created successfully!");
     } catch (error) {
@@ -106,7 +122,7 @@ export function CreateApiKeyDialog({
   const handleOpenChange = (open: boolean) => {
     setOpen(open);
     if (!open) {
-      setFormData({ label: "", permissions: ["read", "write"] });
+      setFormData({ label: "", permissions: ["files:read", "files:write"] });
     }
   };
 
@@ -236,14 +252,14 @@ export function CreateApiKeyDialog({
                 <SelectValue placeholder="Select permissions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="read,write">Read & Write</SelectItem>
-                <SelectItem value="read">Read Only</SelectItem>
-                <SelectItem value="read,write,delete">
+                <SelectItem value="files:read,files:write">
+                  Read & Write
+                </SelectItem>
+                <SelectItem value="files:read">Read Only</SelectItem>
+                <SelectItem value="files:read,files:write,files:delete">
                   Read, Write & Delete
                 </SelectItem>
-                <SelectItem value="read,write,delete,admin">
-                  Full Access (Admin)
-                </SelectItem>
+                <SelectItem value="*">Full Access (Admin)</SelectItem>
               </SelectContent>
             </Select>
             <p

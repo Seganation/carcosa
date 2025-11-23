@@ -183,6 +183,11 @@ export class BucketsService {
             },
           },
         },
+        _count: {
+          select: {
+            projects: true,
+          },
+        },
       },
     });
 

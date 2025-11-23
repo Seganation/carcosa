@@ -1,6 +1,7 @@
 import { PrismaClient } from "@carcosa/database";
 import { TeamRole } from "../types/enums.js";
 import type { CreateProjectInput, UpdateProjectInput } from "../validations/projects.validation.js";
+import { apiKeysService } from "./api-keys.service.js";
 
 const prisma = new PrismaClient();
 
@@ -216,7 +217,22 @@ export class ProjectsService {
       },
     });
 
-    return project;
+    // Auto-generate default API key (like UploadThing)
+    const { apiKey, apiKeyRecord } = await apiKeysService.create({
+      projectId: project.id,
+      ownerId,
+      label: "Default API Key",
+      permissions: [
+        "files:read",
+        "files:write",
+        "transforms:execute",
+      ],
+    });
+
+    return {
+      ...project,
+      defaultApiKey: apiKey, // Return the raw API key (only shown once)
+    };
   }
 
   async update(id: string, data: UpdateProjectInput, userId: string) {
