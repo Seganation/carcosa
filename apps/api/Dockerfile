@@ -66,12 +66,11 @@ RUN mkdir -p /app/prisma /app/logs && \
 
 # Copy API files
 COPY --from=installer /app/apps/api/dist ./dist
-COPY --from=installer /app/apps/api/package.json .
 
 # Copy prisma directory (schema + migrations)
 COPY --from=installer /app/packages/database/prisma ./prisma/
 
-# Copy node_modules
+# Copy the entire node_modules from root (includes all dependencies)
 COPY --from=installer /app/node_modules ./node_modules
 
 # Copy all required @carcosa packages
