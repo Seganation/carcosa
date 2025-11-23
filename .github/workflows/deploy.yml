@@ -103,6 +103,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Trigger Coolify Deployment for API
+        if: success()
+        run: |
+          curl -X GET "https://coolify.rawadara.com/api/v1/deploy?uuid=yoo888gwo0cw4ccccswoskc4&force=false"
+
   # Frontend web deployment (runs after API deployment completes)
   web-deploy:
     runs-on: ubuntu-latest
@@ -167,3 +172,8 @@ jobs:
             NEXT_PUBLIC_APP_VERSION=${{ steps.version.outputs.version }}
             NEXT_PUBLIC_BUILD_TIME=${{ github.event.head_commit.timestamp }}
             NEXT_PUBLIC_COMMIT_SHA=${{ github.sha }}
+
+      - name: Trigger Coolify Deployment for Web
+        if: success()
+        run: |
+          curl -X GET "${{ secrets.COOLIFY_WEB_WEBHOOK_URL }}"
