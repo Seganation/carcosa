@@ -68,10 +68,19 @@ COPY --from=installer /app/packages/database/prisma ./prisma/
 # Copy node_modules
 COPY --from=installer /app/node_modules ./node_modules
 
-# Copy database package components
+# Copy all required @carcosa packages
 COPY --from=installer /app/packages/database/dist ./node_modules/@carcosa/database/dist
 COPY --from=installer /app/packages/database/prisma ./node_modules/@carcosa/database/prisma
 COPY --from=installer /app/packages/database/package.json ./node_modules/@carcosa/database/package.json
+
+COPY --from=installer /app/packages/types/dist ./node_modules/@carcosa/types/dist
+COPY --from=installer /app/packages/types/package.json ./node_modules/@carcosa/types/package.json
+
+COPY --from=installer /app/packages/storage/dist ./node_modules/@carcosa/storage/dist
+COPY --from=installer /app/packages/storage/package.json ./node_modules/@carcosa/storage/package.json
+
+COPY --from=installer /app/packages/file-router/dist ./node_modules/@carcosa/file-router/dist
+COPY --from=installer /app/packages/file-router/package.json ./node_modules/@carcosa/file-router/package.json
 
 # Set ownership
 RUN chown -R nodejs:nodejs /app
