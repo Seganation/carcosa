@@ -10,6 +10,8 @@ COPY package.json package-lock.json* ./
 COPY apps/web/carcosa/package.json ./apps/web/carcosa/
 COPY packages/database/package.json ./packages/database/
 COPY packages/types/package.json ./packages/types/
+COPY packages/storage/package.json ./packages/storage/
+COPY packages/file-router/package.json ./packages/file-router/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/cmage/package.json ./packages/cmage/
 COPY packages/ui/package.json ./packages/ui/

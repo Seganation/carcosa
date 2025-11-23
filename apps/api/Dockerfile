@@ -72,7 +72,6 @@ COPY --from=installer /app/node_modules ./node_modules
 COPY --from=installer /app/packages/database/dist ./node_modules/@carcosa/database/dist
 COPY --from=installer /app/packages/database/prisma ./node_modules/@carcosa/database/prisma
 COPY --from=installer /app/packages/database/package.json ./node_modules/@carcosa/database/package.json
-COPY --from=installer /app/packages/database/generated ./node_modules/@carcosa/database/generated
 
 # Set ownership
 RUN chown -R nodejs:nodejs /app
