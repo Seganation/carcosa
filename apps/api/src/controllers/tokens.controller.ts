@@ -108,11 +108,16 @@ export async function generateSecureToken(req: Request, res: Response) {
         projectId,
         revokedAt: null,
         project: {
-          team: {
-            organizationMembers: {
-              some: { userId: req.userId },
+          OR: [
+            { ownerId: req.userId },
+            {
+              team: {
+                members: {
+                  some: { userId: req.userId },
+                },
+              },
             },
-          },
+          ],
         },
       },
       include: {
@@ -134,7 +139,7 @@ export async function generateSecureToken(req: Request, res: Response) {
     const tokenPayload = {
       pid: projectId,
       kid: apiKeyId,
-      tid: apiKey.project.teamId,
+      tid: apiKey.project.teamId || "",
       scopes: apiKey.permissions,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60, // 1 year
